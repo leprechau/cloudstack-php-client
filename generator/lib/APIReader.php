@@ -101,13 +101,28 @@ class APIReader
                 break;
             }
             // build paramater data
-            $data['params'][] = array(
-                "name" => trim($param->name),
-                "description" => trim($param->description),
-                "required" => (bool) $param->required,
-            );
-        }
-
+            if ($this->config['language'] == 'python') {
+              if ($param->required == true) {
+                $data['params_req'][] = array(
+                    "name" => trim($param->name),
+                    "description" => trim($param->description),
+                    "required" => (bool) $param->required,
+                );
+              } else {
+                $data['params_opt'][] = array(
+                    "name" => trim($param->name),
+                    "description" => trim($param->description),
+                    "required" => (bool) $param->required,
+                );
+              }
+            } else {
+              $data['params'][] = array(
+                  "name" => trim($param->name),
+                  "description" => trim($param->description),
+                  "required" => (bool) $param->required,
+              );
+            }
+          }
         return $data;
     }
 
