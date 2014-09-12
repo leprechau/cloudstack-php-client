@@ -8,8 +8,7 @@
     file that was distributed with this source code.
 #}
 {% autoescape false %}
-    def {{ method.name }}(self, {% for param in method.params %}{{ param.name }}{% if param.required != true %} = ""{% endif %}{% if not loop.last %}, {% endif %}
-{% endfor %}):
+    def {{ method.name }}(self{% for param in method.params_req %}, {{ param.name }}{% endfor %}{% for param in method.params_opt %}, {{param.name}} = ""{% endfor %}):
         '''
         {{ method.description | raw }}
         '''
