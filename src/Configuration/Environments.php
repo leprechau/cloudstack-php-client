@@ -13,9 +13,9 @@ class Environments implements \ArrayAccess, \Iterator, \Countable, \JsonSerializ
      * @param \MyENA\CloudStackClientGenerator\Configuration\Environment[] $environments
      */
     public function __construct(array $environments = []) {
-        foreach($environments as $env) {
+        foreach ($environments as $name => $env) {
             if (is_array($env)) {
-                $env = new Environment($env);
+                $env = new Environment(['name' => $name] + $env);
             }
             $this->setEnvironment($env);
         }

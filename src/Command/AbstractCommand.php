@@ -112,7 +112,8 @@ abstract class AbstractCommand extends Command {
                 null,
                 InputOption::VALUE_NONE,
                 'Silence all logging'
-            );
+            )
+        ;
     }
 
     /**

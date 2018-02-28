@@ -17,6 +17,9 @@ class Generator {
     /** @var \MyENA\CloudStackClientGenerator\Client */
     protected $client;
 
+    /** @var \Psr\Log\LoggerInterface */
+    protected $log;
+
     /** @var \Twig_Environment */
     protected $twig;
 
@@ -55,6 +58,8 @@ class Generator {
         $this->config = $config;
         $this->env = $environment;
         $this->client = new Client($environment);
+
+        $this->log = $environment->getLogger();
 
         $this->commandEventMap = require __DIR__.'/../files/command_event_map.php';
 
@@ -125,29 +130,10 @@ class Generator {
         ));
 
         $this->srcDir = sprintf('%s/src', $this->env->getOut());
-        if (!is_dir($this->srcDir) && !mkdir($this->srcDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->srcDir));
-        }
-
         $this->filesDir = sprintf('%s/files', $this->env->getOut());
-        if (!is_dir($this->filesDir) && !mkdir($this->filesDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->filesDir));
-        }
-
         $this->responseDir = sprintf('%s/CloudStackResponse', $this->srcDir);
-        if (!is_dir($this->responseDir) && !mkdir($this->responseDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseDir));
-        }
-
         $this->responseTypesDir = sprintf('%s/Types', $this->responseDir);
-        if (!is_dir($this->responseTypesDir) && !mkdir($this->responseTypesDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseTypesDir));
-        }
-
         $this->requestDir = sprintf('%s/CloudStackRequest', $this->srcDir);
-        if (!is_dir($this->requestDir) && !mkdir($this->requestDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->requestDir));
-        }
     }
 
     /**
@@ -160,29 +146,66 @@ class Generator {
      * @throws \Twig_Error_Syntax
      */
     public function generate() {
-        $log = $this->env->getLogger();
+        $this->log->info('Initializing directories...');
+        $this->initializeDirectories();
 
-        $log->info("Compiling APIs from {$this->env->getHost()}...");
+        $this->log->info("Compiling APIs from {$this->env->getHost()}...");
         $this->compileAPIs();
         ksort($this->apis, SORT_NATURAL);
 
+        $this->log->debug('Setting Twig globals');
         $this->twig->addGlobal('config', $this->config);
         $this->twig->addGlobal('env', $this->env);
-        $this->twig->addGlobal('log', $this->env->getLogger());
+        $this->twig->addGlobal('log', $this->log);
         $this->twig->addGlobal('capabilities', $this->getCapabilities());
 
-
-        $log->info('Writing static templates...');
+        $this->log->info('Writing static templates...');
         $this->writeOutStaticTemplates();
-        $log->info('Writing Client class...');
+        $this->log->info('Writing Client class...');
         $this->writeOutClient();
 
-        $log->info('Writing Request Models...');
+        $this->log->info('Writing Request Models...');
         $this->writeOutRequestModels();
-        $log->info('Writing Shared Response Models...');
+        $this->log->info('Writing Shared Response Models...');
         $this->writeOutSharedResponseModels();
-        $log->info('Writing Response Models...');
+        $this->log->info('Writing Response Models...');
         $this->writeOutResponseModels();
+    }
+
+    protected function cleanDirectory(string $dir) {
+        if (0 < ($cnt = count(($phpFiles = glob($dir.'/*.php'))))) {
+            $this->log->info(sprintf('Directory "%s" has "%d" php file(s), emptying...', $dir, $cnt));
+            foreach ($phpFiles as $phpFile) {
+                if (!@unlink($phpFile)) {
+                    $this->log->warning(sprintf('Unable to delete file "%s"', $phpFile));
+                }
+            }
+        } else {
+            $this->log->debug(sprintf('Directory "%s" is already empty', $dir));
+        }
+    }
+
+    protected function initializeDirectories() {
+        if (!is_dir($this->srcDir) && !mkdir($this->srcDir)) {
+            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->srcDir));
+        }
+        if (!is_dir($this->filesDir) && !mkdir($this->filesDir)) {
+            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->filesDir));
+        }
+        if (!is_dir($this->responseDir) && !mkdir($this->responseDir)) {
+            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseDir));
+        }
+        if (!is_dir($this->responseTypesDir) && !mkdir($this->responseTypesDir)) {
+            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseTypesDir));
+        }
+        if (!is_dir($this->requestDir) && !mkdir($this->requestDir)) {
+            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->requestDir));
+        }
+        $this->cleanDirectory($this->srcDir);
+        $this->cleanDirectory($this->filesDir);
+        $this->cleanDirectory($this->responseDir);
+        $this->cleanDirectory($this->responseTypesDir);
+        $this->cleanDirectory($this->requestDir);
     }
 
     /**
@@ -191,7 +214,7 @@ class Generator {
      * @return bool|int
      */
     protected function writeFile(string $file, string $data) {
-        $this->env->getLogger()->debug('Writing '.mb_strlen($data).' bytes to '.$file);
+        $this->log->debug('Writing '.mb_strlen($data).' bytes to '.$file);
         return file_put_contents($file, $data);
     }
 
@@ -520,7 +543,7 @@ class Generator {
                 if (isset($this->commandEventMap[$api->getName()])) {
                     $api->setEventType($this->commandEventMap[$api->getName()]);
                 } else {
-                    $this->env->getLogger()->warning(sprintf('No async event present in map for %s', $api->getName()));
+                    $this->log->warning(sprintf('No async event present in map for %s', $api->getName()));
                 }
             }
 
