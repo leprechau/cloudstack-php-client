@@ -15,5 +15,5 @@ use MyENA\CloudStackClientGenerator\Application;
 
 error_reporting(-1);
 
-$application = new Application('PHP CloudStack', '4.0.0');
+$application = new Application('PHP CloudStack', '5.0.0');
 $application->run();
