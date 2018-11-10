@@ -1,0 +1,49 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}{% spaceless %}
+{% set params = api.parameters %}
+{% set requiredParams = params.required %}
+{% set optionalParams = params.optional %}
+{% set requiredParamLength = requiredParams|length %}
+{% set optionalParamLength = optionalParams|length %}
+{% set hasMapParameter = false %}
+{% for param in api.parameters if hasMapParameter == false %}
+    {% if param.type == 'map' %}
+        {% set hasMapParameter = true %}
+    {% endif %}
+{% endfor %}
+{% endspaceless %}
+<?php
+
+{{ namespace_stmt('CloudStackRequest') }}
+
+{{ file_header(capabilities) }}
+{% if 0 < requiredParamLength %}
+
+use {{ namespace_path('CloudStackRequestException') }};{% endif %}{% if namespace_path() != '' %}{% if api.isAsync and api.eventType != ''%}
+
+use {{ namespace_path('CloudStackEventTypes') }};{% endif %}{% if hasMapParameter %}
+
+use {{ namespace_path('CloudStackHelpers') }};{% endif %}
+
+{% endif %}
+
+/**
+{{ swagger_definition_tag(api.swaggername, escape_swagger_string(api.description), api.parameters, 0) }}
+ */
+
+/**
+ * Class {{className}}
+ * @package {{ namespace_path('CloudStackRequest', true) }}
+{{ since_tag_line(api.since, 0, true) }} */
+class {{className}} extends {{ api.requestClassname }}{
+}

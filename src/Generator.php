@@ -141,6 +141,8 @@ class Generator
         $this->writeOutSharedResponseModels();
         $this->log->info('Writing Response Models...');
         $this->writeOutResponseModels();
+		$this->log->info('Writing Request Overloaded Models...');
+		$this->writeOutOverloadedModels();
     }
 
     protected function initializeDirectories()
@@ -478,6 +480,38 @@ class Generator
                 $template->render(['api' => $api])
             );
         }
+    }
+	/**
+     * @throws \Twig_Error_Loader
+     * @throws \Twig_Error_Runtime
+     * @throws \Twig_Error_Syntax
+     */
+    protected function writeOutOverloadedModels()
+    {
+		foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
+            if(array_key_exists(explode("Request",lcfirst($overloadedClass->getName()))[0],$this->apis)){
+                $template = $this->twig->load('models/requestOverload.php.twig');
+                $path = $this->requestDir;
+                $this->writeFile(
+                    $path . '/' . $overloadedClass->getOverload() . '.php',
+                    $template->render([
+                        'api'       => $this->apis[explode("Request",lcfirst($overloadedClass->getName()))[0]],
+                        'className' => $overloadedClass->getOverload(),
+                    ])
+                );
+            }
+            if(array_key_exists(strtolower($overloadedClass->getName()),$this->sharedObjectMap)){
+                $template = $this->twig->load('models/responseOverload.php.twig');
+                $path = $this->responseDir;
+                $this->writeFile(
+                    $path . '/' . $overloadedClass->getOverload() . '.php',
+                    $template->render([
+                        'obj'       => $this->sharedObjectMap[strtolower($overloadedClass->getName())],
+                        'className' => $overloadedClass->getOverload(),
+                    ])
+                );
+            }
+		}
     }
 
     /**
