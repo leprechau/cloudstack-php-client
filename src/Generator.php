@@ -473,11 +473,19 @@ class Generator
     {
         $template = $this->twig->load('models/request.php.twig');
 
+        $overloads = [];
+        foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
+            $overloads[$overloadedClass->getName()] = $overloadedClass->getOverload();
+        }
         foreach ($this->apis as $api) {
             $className = $api->getRequestClassName();
+           
             $this->writeFile(
                 $this->requestDir . '/' . $className . '.php',
-                $template->render(['api' => $api])
+                $template->render([
+                    'api' => $api,
+                    'overloadClassName' => $overloads[$className]??null,
+                ])
             );
         }
     }
@@ -489,17 +497,17 @@ class Generator
     protected function writeOutOverloadedModels()
     {
         foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
-            if(array_key_exists(explode("Request",lcfirst($overloadedClass->getName()))[0],$this->apis)){
-                $template = $this->twig->load('models/request.php.twig');
-                $path = $this->requestDir;
-                $this->writeFile(
-                    $path . '/' . $overloadedClass->getOverload() . '.php',
-                    $template->render([
-                        'api'       => $this->apis[explode("Request",lcfirst($overloadedClass->getName()))[0]],
-                        'overloadClassName' => $overloadedClass->getOverload(),
-                    ])
-                );
-            }
+            // if(array_key_exists(explode("Request",lcfirst($overloadedClass->getName()))[0],$this->apis)){
+            //     $template = $this->twig->load('models/request.php.twig');
+            //     $path = $this->requestDir;
+            //     $this->writeFile(
+            //         $path . '/' . $overloadedClass->getOverload() . '.php',
+            //         $template->render([
+            //             'api'       => $this->apis[explode("Request",lcfirst($overloadedClass->getName()))[0]],
+            //             'overloadClassName' => $overloadedClass->getOverload(),
+            //         ])
+            //     );
+            // }
             if(array_key_exists(strtolower($overloadedClass->getName()),$this->sharedObjectMap)){
                 $template = $this->twig->load('models/response.php.twig');
                 $path = $this->responseDir;
