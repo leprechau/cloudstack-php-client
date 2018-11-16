@@ -141,8 +141,8 @@ class Generator
         $this->writeOutSharedResponseModels();
         $this->log->info('Writing Response Models...');
         $this->writeOutResponseModels();
-		$this->log->info('Writing Request Overloaded Models...');
-		$this->writeOutOverloadedModels();
+        $this->log->info('Writing Request Overloaded Models...');
+        $this->writeOutOverloadedModels();
     }
 
     protected function initializeDirectories()
@@ -481,14 +481,14 @@ class Generator
             );
         }
     }
-	/**
+    /**
      * @throws \Twig_Error_Loader
      * @throws \Twig_Error_Runtime
      * @throws \Twig_Error_Syntax
      */
     protected function writeOutOverloadedModels()
     {
-		foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
+        foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
             if(array_key_exists(explode("Request",lcfirst($overloadedClass->getName()))[0],$this->apis)){
                 $template = $this->twig->load('models/request.php.twig');
                 $path = $this->requestDir;
@@ -511,7 +511,7 @@ class Generator
                     ])
                 );
             }
-		}
+        }
     }
 
     /**
