@@ -245,7 +245,6 @@ class Generator
      */
     protected function buildVariable(bool $inResponse, \stdClass $def)
     {
-
         if (!isset($def->name)) {
             return null;
         }
