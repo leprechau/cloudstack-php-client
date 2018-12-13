@@ -233,7 +233,7 @@ abstract class AbstractCommand extends Command
                 $source->setScheme($input->getOption(self::OPT_REMOTE_SCHEME));
             }
             if (Configuration\Environment\Source\Remote::DEFAULT_PORT === $source->getPort()) {
-                $source->setPort($input->getOption(self::OPT_REMOTE_PORT));
+                $source->setPort((int)$input->getOption(self::OPT_REMOTE_PORT));
             }
             if ($key = $input->getOption(self::OPT_REMOTE_KEY)) {
                 $source->setKey($key);
