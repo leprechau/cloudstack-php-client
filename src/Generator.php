@@ -141,8 +141,6 @@ class Generator
         $this->writeOutSharedResponseModels();
         $this->log->info('Writing Response Models...');
         $this->writeOutResponseModels();
-        $this->log->info('Writing Request Overloaded Models...');
-        $this->writeOutOverloadedModels();
     }
 
     protected function initializeDirectories()
@@ -247,7 +245,6 @@ class Generator
      */
     protected function buildVariable(bool $inResponse, \stdClass $def)
     {
-
         if (!isset($def->name)) {
             return null;
         }
@@ -472,42 +469,16 @@ class Generator
     protected function writeOutRequestModels()
     {
         $template = $this->twig->load('models/request.php.twig');
-
-        $overloads = [];
-        foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
-            $overloads[$overloadedClass->getName()] = $overloadedClass->getOverload();
-        }
+        $overloadedClasses = $this->config->getOverloadedClasses();
         foreach ($this->apis as $api) {
             $className = $api->getRequestClassName();
-           
             $this->writeFile(
                 $this->requestDir . '/' . $className . '.php',
                 $template->render([
-                    'api' => $api,
-                    'overloadClassName' => $overloads[$className]??null,
+                    'api'               => $api,
+                    'overloadClass' => $overloadedClasses->getOverloadedClass($className),
                 ])
             );
-        }
-    }
-    /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
-     */
-    protected function writeOutOverloadedModels()
-    {
-        foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
-            if(array_key_exists(strtolower($overloadedClass->getName()),$this->sharedObjectMap)){
-                $template = $this->twig->load('models/response.php.twig');
-                $path = $this->responseDir;
-                $this->writeFile(
-                    $path . '/' . $overloadedClass->getOverload() . '.php',
-                    $template->render([
-                        'obj'       => $this->sharedObjectMap[strtolower($overloadedClass->getName())],
-                        'overloadClassName' => $overloadedClass->getOverload(),
-                    ])
-                );
-            }
         }
     }
 
