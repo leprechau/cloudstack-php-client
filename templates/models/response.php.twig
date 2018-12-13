@@ -26,7 +26,7 @@
  * Class {{ obj.className }}
  * @package {{ namespace_path('CloudStackResponse', true) }}
 {% if api is defined %}{{ since_tag_line(api.since, 0, true) }}{% endif %} */
-class {% if overloadClassName is defined %}{{overloadClassName}} extends {% endif %}{{ obj.className }}{% if obj.shared == false %} implements {% if isPageableResponse %}CloudStackPageableListResponse{% elseif isListResponse %}CloudStackListResponse{% else %}CloudStackResponseInterface{% endif %}{% endif %}
+class {% if overloadClass is defined %}{{overloadClass.Name}} extends {% endif %}{{ obj.className }}{% if obj.shared == false %} implements {% if isPageableResponse %}CloudStackPageableListResponse{% elseif isListResponse %}CloudStackListResponse{% else %}CloudStackResponseInterface{% endif %}{% endif %}
 
 {
 {% for prop in obj.properties %}

@@ -178,7 +178,7 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
      */
     public function getCloudStackResponseModel(): string
     {
-        return '{{ overloadClassName?overloadClassName|replace({"\\": "\\\\"}):api.response.FQName|replace({"\\": "\\\\"}) }}';
+        return '{{ (overloadClass ? overloadClass.Name : api.response.FQName) | replace({"\\": "\\\\"}) }}';
     }
 {% if api.isAsync %}
 
