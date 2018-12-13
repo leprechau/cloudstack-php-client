@@ -12,7 +12,7 @@ use function MyENA\CloudStackClientGenerator\parseTTL;
 class Cache implements \JsonSerializable
 {
     const DEFAULT_ENABLED = true;
-    const DEFAULT_TTL = 5 * 60;
+    const DEFAULT_TTL     = 5 * 60;
 
     /** @var string|null */
     private $idPrefix;
@@ -114,7 +114,7 @@ class Cache implements \JsonSerializable
         if ($command = $this->getCommand($command)) {
             return $command->getTTL();
         }
-        return self::DEFAULT_TTL;
+        return $this->getDefaultTTL();
     }
 
     /**

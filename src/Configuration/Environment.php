@@ -2,9 +2,7 @@
 
 namespace MyENA\CloudStackClientGenerator\Configuration;
 
-use MyENA\CloudStackClientGenerator\Configuration\Environment\Cache;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Composer;
-use MyENA\CloudStackClientGenerator\Configuration\Environment\Logging;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Remote;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\SourceProviderInterface;
@@ -71,10 +69,6 @@ class Environment implements \JsonSerializable
     {
         $this->logger = $logger;
 
-        // create some defaults, will be overridden if defined.
-        $this->cache = new Cache();
-        $this->logging = new Logging();
-
         $localConf = null;
         $remoteConf = null;
 
@@ -113,6 +107,15 @@ class Environment implements \JsonSerializable
         }
         if (isset($localConf)) {
             $this->local = $this->parseLocalEntry($localConf);
+        }
+
+        // ensure cache is set
+        if (!isset($this->cache)) {
+            $this->cache = new Environment\Cache();
+        }
+        // ensure logging is set
+        if (!isset($this->logging)) {
+            $this->logging = new Environment\Logging();
         }
 
         $this->logger->debug(sprintf('Environment %s configuration loaded', $this->name));
@@ -172,7 +175,7 @@ class Environment implements \JsonSerializable
      * @param string $consolePath
      * @return void
      */
-    public function setConsolePath(string $consolePath)
+    public function setConsolePath(string $consolePath): void
     {
         $this->consolePath = trim($consolePath, " \t\n\r\0\x0B/");
     }
@@ -189,7 +192,7 @@ class Environment implements \JsonSerializable
      * @param string $namespace
      * @return void
      */
-    public function setNamespace(string $namespace)
+    public function setNamespace(string $namespace): void
     {
         if (!preg_match(self::VALID_NAMESPACE_REGEX, $namespace)) {
             throw new \InvalidArgumentException(sprintf(
@@ -221,7 +224,7 @@ class Environment implements \JsonSerializable
     /**
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Cache|null
      */
-    public function getCache(): ?Cache
+    public function getCache(): ?Environment\Cache
     {
         return $this->cache ?? null;
     }
@@ -229,7 +232,7 @@ class Environment implements \JsonSerializable
     /**
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Logging
      */
-    public function getLogging(): Logging
+    public function getLogging(): Environment\Logging
     {
         return $this->logging;
     }
@@ -295,7 +298,7 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Cache|null
      */
-    protected function parseCacheEntry($v): ?Cache
+    protected function parseCacheEntry($v): ?Environment\Cache
     {
         if (null === $v) {
             return null;
@@ -308,7 +311,7 @@ class Environment implements \JsonSerializable
             ));
         }
 
-        return new Cache($v);
+        return new Environment\Cache($v);
     }
 
     /**
@@ -325,9 +328,9 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Logging
      */
-    protected function parseLoggingEntry($v): Logging
+    protected function parseLoggingEntry($v): Environment\Logging
     {
-        return new Logging(is_array($v) ? $v : []);
+        return new Environment\Logging(is_array($v) ? $v : []);
     }
 
     /**

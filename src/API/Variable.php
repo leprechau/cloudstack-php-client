@@ -4,6 +4,7 @@ namespace MyENA\CloudStackClientGenerator\API;
 
 use function MyENA\CloudStackClientGenerator\buildRequiredTagLine;
 use function MyENA\CloudStackClientGenerator\buildSinceTagLine;
+use function MyENA\CloudStackClientGenerator\determineSwaggerName;
 use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
 use function MyENA\CloudStackClientGenerator\tagIndent;
 
@@ -37,10 +38,12 @@ class Variable
     /**
      * Variable constructor.
      * @param bool $inResponse Whether this property is contained by a response object. If false, assume part of Request object.
+     * @param string $name
      */
-    public function __construct(bool $inResponse)
+    public function __construct(bool $inResponse, string $name)
     {
         $this->inResponse = $inResponse;
+        $this->name = $name;
     }
 
     /**
@@ -49,14 +52,6 @@ class Variable
     public function getName(): string
     {
         return $this->name;
-    }
-
-    /**
-     * @param string $name
-     */
-    public function setName(string $name)
-    {
-        $this->name = $name;
     }
 
     /**
@@ -449,7 +444,7 @@ class Variable
         }
 
         $tag = tagIndent($indent, $nestLevel * 4) . "@SWG\\Property(\n";
-        $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . "property=\"{$this->getName()}\",\n";
+        $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . "property=\"" . determineSwaggerName($this) . "\",\n";
         $tag .= $this->getSwaggerTypeField(true, false, $indent, $nestLevel + 1) . "\n";
         $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . $this->getSwaggerDescriptionField(false) . "\n";
 

@@ -26,7 +26,12 @@ class OverloadedClasses implements \ArrayAccess, \Iterator, \Countable, \JsonSer
         $this->logger = $logger;
         foreach ($classes as $class) {
             if (is_array($class)) {
-                $class = new OverloadedClass($logger, $class['name'] ?? '', $class['overload'] ?? '');
+                $class = new OverloadedClass(
+                    $logger,
+                    $class['name'] ?? '',
+                    $class['overload'] ?? '',
+                    $class['swagger'] ?? ''
+                );
             }
             $this->setOverloadedClass($class);
         }
@@ -38,7 +43,7 @@ class OverloadedClasses implements \ArrayAccess, \Iterator, \Countable, \JsonSer
      */
     public function setOverloadedClass(OverloadedClass $class)
     {
-        $this->_classes[$class->getName()] = $class;
+        $this->_classes[$class->getOverloadedClass()] = $class;
     }
 
     /**

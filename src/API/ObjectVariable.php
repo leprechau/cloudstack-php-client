@@ -2,7 +2,7 @@
 
 namespace MyENA\CloudStackClientGenerator\API;
 
-use MyENA\CloudStackClientGenerator\API;
+use MyENA\CloudStackClientGenerator\Configuration\OverloadedClass;
 use function MyENA\CloudStackClientGenerator\buildSwaggerDefinitionTag;
 use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
 
@@ -12,173 +12,50 @@ use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
  */
 class ObjectVariable extends Variable
 {
-    /** @var bool */
-    private $shared = false;
 
     /** @var string */
     private $namespace;
-
     /** @var VariableContainer */
     private $properties;
+    /** @var bool */
+    private $shared;
+
+    /** @var \MyENA\CloudStackClientGenerator\Configuration\OverloadedClass */
+    private $overloadedClass;
 
     /**
      * ObjectVariable constructor.
      * @param bool $inResponse
+     * @param string $name
      * @param string $namespace
+     * @param bool $shared
      */
-    public function __construct(bool $inResponse, string $namespace)
+    public function __construct(bool $inResponse, string $name, string $namespace, bool $shared)
     {
-        parent::__construct($inResponse);
+        parent::__construct($inResponse, $name);
         $this->namespace = $namespace;
         $this->properties = new VariableContainer();
+        $this->shared = $shared;
     }
 
     /**
-     * TODO: This loops through the properties entirely to many times.
-     *
-     * @param \MyENA\CloudStackClientGenerator\API|null $sourceAPI
-     * @return string
+     * @return \MyENA\CloudStackClientGenerator\Configuration\OverloadedClass|null
      */
-    public function buildConstructor(?API $sourceAPI = null)
+    public function getOverloadedClass(): ?OverloadedClass
     {
-        $dates = [];
-        $objects = [];
-
-        foreach ($this->getProperties() as $name => $property) {
-            if ('date' === $property->getType()) {
-                $dates[] = $property->getName();
-            }
-
-            if ($property instanceof ObjectVariable) {
-                $objects[] = $property->getName();
-            }
-        }
-
-        $datesCnt = count($dates);
-        $objectsCnt = count($objects);
-
-        $c = <<<STRING
-    /**
-     * {$this->getClassName()} Constructor
-     *
-
-STRING;
-        if ($sourceAPI && ($sourceAPI->isPageable() || $sourceAPI->isList())) {
-            if ($sourceAPI->isPageable()) {
-                $c .= <<<STRING
-     * @param int \$requestPage
-     * @param int \$requestPageSize
-     * @param int \$totalReturnCount
-     * @param array \$data    
-     */
-    public function __construct(?int \$requestPage, ?int \$requestPageSize, int \$totalReturnCount, array \$data) {
-        \$this->requestPage = \$requestPage;
-        \$this->requestPageSize = \$requestPageSize;
-        \$this->totalReturnCount = \$totalReturnCount;
-
-STRING;
-            } else {
-                $c .= <<<STRING
-     * @param int \$totalReturnCount
-     * @param array \$data    
-     */
-    public function __construct(int \$totalReturnCount, array \$data) {
-        \$this->totalReturnCount = \$totalReturnCount;
-
-STRING;
-            }
-        } else {
-            $c .= <<<STRING
-     * @param array \$data
-     */
-    public function __construct(array \$data) {
-
-STRING;
-
-        }
-
-        // if this is a very simple class, just return the loop and move on.
-        if (0 === $datesCnt && 0 === $objectsCnt) {
-            return $c . <<<STRING
-        foreach (\$data as \$k => \$v) {
-            \$this->{\$k} = \$v;
-        }
-    }
-STRING;
-        }
-
-        // otherwise, do stuff.
-        // TODO: This could stand to be improved.
-
-        foreach ($this->getProperties() as $name => $property) {
-            if ($property->isCollection() && $property instanceof ObjectVariable) {
-                $c .= "        \$this->{$name} = [];\n";
-            }
-        }
-
-
-        $c .= "        foreach(\$data as \$k => \$v) {\n";
-
-        $first = true;
-
-        foreach ($this->getProperties() as $name => $property) {
-            $name = $property->getName();
-
-            if (in_array($name, $dates, true)) {
-                if ($first) {
-                    $c .= '            if ';
-                    $first = false;
-                } else {
-                    $c .= ' else if ';
-                }
-
-                $c .= <<<STRING
-('{$name}' === \$k && '' !== (\$v = trim((string)\$v))) {
-                \$this->{$name} = Types\\DateType::fromApiDate(\$v);
-            }
-STRING;
-
-            }
-
-            if ($property instanceof ObjectVariable) {
-                if ($first) {
-                    $c .= '            if ';
-                    $first = false;
-                } else {
-                    $c .= ' else if ';
-                }
-
-                if ($property->isCollection()) {
-                    $c .= <<<STRING
-('{$name}' === \$k && is_array(\$v)) {
-                foreach(\$v as \$value) {
-                    \$this->{$name}[] = new {$property->getClassName()}(\$value);
-                }
-            }
-STRING;
-
-                } else {
-                    $c .= <<<STRING
-('{$name}' === \$k && null !== \$v) {
-                \$this->{$name} = new {$property->getClassName()}(\$value);
-            }
-STRING;
-
-                }
-            }
-        }
-
-        return $c . <<<STRING
- else {
-                \$this->{\$k} = \$v;
-            }
-        }
-    }
-STRING;
+        return $this->overloadedClass ?? null;
     }
 
     /**
-     * @return VariableContainer
+     * @param \MyENA\CloudStackClientGenerator\Configuration\OverloadedClass|null $overloadedClass
+     */
+    public function setOverloadedClass(?OverloadedClass $overloadedClass): void
+    {
+        $this->overloadedClass = $overloadedClass;
+    }
+
+    /**
+     * @return \MyENA\CloudStackClientGenerator\API\VariableContainer
      */
     public function getProperties()
     {
@@ -188,7 +65,7 @@ STRING;
     /**
      * @return string
      */
-    public function getClassName()
+    public function getClassName(): string
     {
         if ($this->isShared()) {
             return ucfirst($this->getName());
@@ -200,17 +77,9 @@ STRING;
     /**
      * @return bool
      */
-    public function isShared()
+    public function isShared(): bool
     {
         return $this->shared;
-    }
-
-    /**
-     * @param bool $shared
-     */
-    public function setShared($shared)
-    {
-        $this->shared = (bool)$shared;
     }
 
     /**
@@ -218,13 +87,16 @@ STRING;
      */
     public function getPHPType(): string
     {
+        if ($overloaded = $this->getOverloadedClass()) {
+            return $overloaded->getFQName();
+        }
         return $this->getFQName();
     }
 
     /**
      * @return string
      */
-    public function getFQName()
+    public function getFQName(): string
     {
         if (!isset($this->namespace) || $this->namespace === '') {
             return sprintf('\\CloudStackResponse\\%s', $this->getClassName());

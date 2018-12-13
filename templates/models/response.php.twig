@@ -16,7 +16,7 @@
 
 {{ namespace_stmt('CloudStackResponse') }}
 
-{{ file_header(capabilities) }}
+{{ file_header(capabilities, obj) }}
 
 /**
 {{ swagger_definition_tag(obj.swaggername, escape_swagger_string(obj.description), obj.properties, 0) }}
@@ -26,7 +26,7 @@
  * Class {{ obj.className }}
  * @package {{ namespace_path('CloudStackResponse', true) }}
 {% if api is defined %}{{ since_tag_line(api.since, 0, true) }}{% endif %} */
-class {% if overloadClass is defined %}{{overloadClass.Name}} extends {% endif %}{{ obj.className }}{% if obj.shared == false %} implements {% if isPageableResponse %}CloudStackPageableListResponse{% elseif isListResponse %}CloudStackListResponse{% else %}CloudStackResponseInterface{% endif %}{% endif %}
+class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageableResponse %}CloudStackPageableListResponse{% elseif isListResponse %}CloudStackListResponse{% else %}CloudStackResponseInterface{% endif %}{% endif %}
 
 {
 {% for prop in obj.properties %}
@@ -45,7 +45,7 @@ class {% if overloadClass is defined %}{{overloadClass.Name}} extends {% endif %
     private $requestPageSize = null;
 
 {% endif %}
-{{ obj.buildConstructor(api is defined ? api : null) }}
+{{ object_constructor(obj, (api is defined ? api : null)) }}
 
 {% for prop in obj.properties %}
 {% include "models/getter.php.twig" with {'prop': prop, 'env': env} %}
