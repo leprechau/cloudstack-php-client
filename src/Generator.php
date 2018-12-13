@@ -37,8 +37,6 @@ class Generator
     /** @var string */
     protected $srcDir;
     /** @var string */
-    protected $filesDir;
-    /** @var string */
     protected $responseDir;
     /** @var string */
     protected $responseTypesDir;
@@ -83,8 +81,11 @@ class Generator
         $this->log->debug('Registering Twig functions...');
         $this->registerTwigFunctions();
 
-        $this->srcDir = sprintf('%s/src', $this->env->getOut());
-        $this->filesDir = sprintf('%s/files', $this->env->getOut());
+        if (null !== $environment->getComposer()) {
+            $this->srcDir = sprintf('%s/src', $this->env->getOut());
+        } else {
+            $this->srcDir = $this->env->getOut();
+        }
         $this->responseDir = sprintf('%s/CloudStackResponse', $this->srcDir);
         $this->responseTypesDir = sprintf('%s/Types', $this->responseDir);
         $this->requestDir = sprintf('%s/CloudStackRequest', $this->srcDir);
@@ -115,10 +116,12 @@ class Generator
         $capabilities = $source->getCapabilities();
 
         $this->log->info("CloudStack Version: {$capabilities->cloudstackversion}");
-        $this->env->getComposer()->setCloudStackVersion($capabilities->cloudstackversion);
+        if (null !== $this->env->getComposer()) {
+            $this->env->getComposer()->setCloudStackVersion($capabilities->cloudstackversion);
 
-        $this->log->info('Validating composer.json...');
-        $this->env->getComposer()->validate();
+            $this->log->info('Validating composer.json...');
+            $this->env->getComposer()->validate();
+        }
 
         $this->compileAPIs($apis);
         ksort($this->apis, SORT_NATURAL);
@@ -153,9 +156,6 @@ class Generator
         if (!is_dir($this->srcDir) && !mkdir($this->srcDir)) {
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->srcDir));
         }
-        if (!is_dir($this->filesDir) && !mkdir($this->filesDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->filesDir));
-        }
         if (!is_dir($this->responseDir) && !mkdir($this->responseDir)) {
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseDir));
         }
@@ -166,7 +166,6 @@ class Generator
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->requestDir));
         }
         $this->cleanDirectory($this->srcDir);
-        $this->cleanDirectory($this->filesDir);
         $this->cleanDirectory($this->responseDir);
         $this->cleanDirectory($this->responseTypesDir);
         $this->cleanDirectory($this->requestDir);
@@ -376,10 +375,12 @@ class Generator
             file_get_contents(__DIR__ . '/../LICENSE')
         );
 
-        $this->writeFile(
-            $this->env->getOut() . '/composer.json',
-            $this->twig->load('composer.json.twig')->render([])
-        );
+        if (null !== $this->env->getComposer()) {
+            $this->writeFile(
+                $this->env->getOut() . '/composer.json',
+                $this->twig->load('composer.json.twig')->render([])
+            );
+        }
 
         $this->writeFile(
             $this->srcDir . '/CloudStackConfiguration.php',

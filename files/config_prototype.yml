@@ -34,7 +34,9 @@ php_cs_generator:
       consolepath: "client/console"
       out: ~ # choose output path
       namespace: "\\MyGreatNamespace"
-      composer: # generated composer.json details. any valid composer entries are allowed here, ones that have special treatment are listed below
+      # generated composer.json details. any valid composer entries are allowed here, ones that have special treatment are listed below
+      # if set to null, will not generate this as a composer package but as raw code files instead.
+      composer:
         name: ~ # if left blank, will be created from namespace entry above
         type: ~ # if left blank, will be "library"
         license: ~ # if left blank, will be "MIT"

@@ -139,11 +139,11 @@ class Environment implements \JsonSerializable
     }
 
     /**
-     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer
+     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer|null
      */
-    public function getComposer(): Composer
+    public function getComposer(): ?Composer
     {
-        return $this->composer;
+        return $this->composer ?? null;
     }
 
     /**
@@ -319,8 +319,11 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer
      */
-    protected function parseComposerEntry(string $namespace, $v): Composer
+    protected function parseComposerEntry(string $namespace, $v): ?Composer
     {
+        if (null === $v) {
+            return null;
+        }
         return new Composer($namespace, is_array($v) ? $v : []);
     }
 
