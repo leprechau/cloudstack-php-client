@@ -35,7 +35,7 @@ class CloudStackClient
         RequestOptions::DECODE_CONTENT => false,
     ];
 
-    /** @var {{ namespace_path('CloudStackConfiguration', true) }} */
+    /** @var {{ namespace_path('CloudStackClientConfiguration', true) }} */
     protected $configuration;
 
     /** @var \Psr\Log\LoggerInterface */
@@ -47,9 +47,9 @@ class CloudStackClient
     /**
      * CloudStackClient constructor
      *
-     * @param {{ namespace_path('CloudStackConfiguration', true) }} $configuration
+     * @param {{ namespace_path('CloudStackClientConfiguration', true) }} $configuration
      */
-    public function __construct(CloudStackConfiguration $configuration) {
+    public function __construct(CloudStackClientConfiguration $configuration) {
         $this->configuration = $configuration;
         $this->logger = $configuration->getLogger();
         $this->cacheProvider = $configuration->getCacheProvider();
@@ -57,10 +57,10 @@ class CloudStackClient
 
     /**
      * This will construct a new CloudStackClient instance with caching entirely disabled
-     * @param {{ namespace_path('CloudStackConfiguration', true) }} $configuration
+     * @param {{ namespace_path('CloudStackClientConfiguration', true) }} $configuration
      * @return {{ namespace_path('CloudStackClient', true) }}
      */
-    public static function withoutCache(CloudStackConfiguration $configuration): CloudStackClient
+    public static function withoutCache(CloudStackClientConfiguration $configuration): CloudStackClient
     {
         $new = new static($configuration);
         $new->cacheProvider = null;
@@ -76,9 +76,9 @@ class CloudStackClient
     }
 
     /**
-     * @return {{ namespace_path('CloudStackConfiguration', true) }}
+     * @return {{ namespace_path('CloudStackClientConfiguration', true) }}
      */
-    public function getCloudStackClientConfiguration(): CloudStackConfiguration
+    public function getCloudStackClientConfiguration(): CloudStackClientConfiguration
     {
         return $this->configuration;
     }

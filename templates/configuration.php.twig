@@ -25,9 +25,9 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Class CloudStackConfiguration
+ * Class CloudStackClientConfiguration
  */
-class CloudStackConfiguration implements LoggerAwareInterface
+class CloudStackClientConfiguration implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
@@ -59,7 +59,7 @@ class CloudStackConfiguration implements LoggerAwareInterface
     protected $cacheProvider;
 
     /**
-     * CloudStackConfiguration constructor.
+     * CloudStackClientConfiguration constructor.
      *
      * @param array $config
      * @param \Psr\Log\LoggerInterface|null $logger
@@ -112,9 +112,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $apiKey
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setApiKey(string $apiKey): CloudStackConfiguration
+    public function setApiKey(string $apiKey): CloudStackClientConfiguration
     {
         $this->apiKey = $apiKey;
         return $this;
@@ -130,9 +130,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $secretKey
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setSecretKey(string $secretKey): CloudStackConfiguration
+    public function setSecretKey(string $secretKey): CloudStackClientConfiguration
     {
         $this->secretKey = $secretKey;
         return $this;
@@ -148,9 +148,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $scheme
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setScheme(string $scheme): CloudStackConfiguration
+    public function setScheme(string $scheme): CloudStackClientConfiguration
     {
         $this->scheme = $scheme;
         $this->compiledAddress = '';
@@ -167,9 +167,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $host
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setHost(string $host): CloudStackConfiguration
+    public function setHost(string $host): CloudStackClientConfiguration
     {
         $this->host = $host;
         $this->compiledAddress = '';
@@ -186,9 +186,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param int $port
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setPort(int $port): CloudStackConfiguration
+    public function setPort(int $port): CloudStackClientConfiguration
     {
         $port = intval($port);
         if (0 === $port) {
@@ -212,9 +212,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $pathPrefix
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setPathPrefix(string $pathPrefix): CloudStackConfiguration
+    public function setPathPrefix(string $pathPrefix): CloudStackClientConfiguration
     {
         $this->pathPrefix = trim($pathPrefix, " \t\n\r\0\x0B/");
         $this->compiledAddress = '';
@@ -231,9 +231,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @var string $apiPath;
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setApiPath(string $apiPath): CloudStackConfiguration
+    public function setApiPath(string $apiPath): CloudStackClientConfiguration
     {
         $this->apiPath = trim($apiPath, " \t\n\r\0\x0B/");
         return $this;
@@ -249,9 +249,9 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param string $consolePath
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
-    public function setConsolePath(string $consolePath): CloudStackConfiguration
+    public function setConsolePath(string $consolePath): CloudStackClientConfiguration
     {
         $this->consolePath = trim($consolePath, " \t\n\r\0\x0B/");
         return $this;
@@ -300,7 +300,7 @@ class CloudStackConfiguration implements LoggerAwareInterface
 
     /**
      * @param \GuzzleHttp\ClientInterface $httpClient
-     * @return CloudStackConfiguration
+     * @return CloudStackClientConfiguration
      */
     public function setHttpClient(ClientInterface $httpClient)
     {

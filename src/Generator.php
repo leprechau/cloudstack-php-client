@@ -383,7 +383,7 @@ class Generator
         }
 
         $this->writeFile(
-            $this->srcDir . '/CloudStackConfiguration.php',
+            $this->srcDir . '/CloudStackClientConfiguration.php',
             $this->twig->load('configuration.php.twig')->render([])
         );
 

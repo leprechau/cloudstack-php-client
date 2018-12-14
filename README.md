@@ -33,7 +33,7 @@ There are 3 directories of files created by this generated process, however you 
 
 - `composer.json` : This will be in the root of the `output_dir`, and should be edited for your specific implementation
 - `src/CloudStackClient.php` : This is the class that you will execute all api calls from
-- `src/CloudStackConfiguration.php` : This is the configuration class that is required when constructing a Client class
+- `src/CloudStackClientConfiguration.php` : This is the configuration class that is required when constructing a Client class
 
 PHP Library Usage
 -----------------
@@ -41,7 +41,7 @@ PHP Library Usage
 ### Initialization
 
 ```php
-    $configuration = new CloudStackConfiguration([
+    $configuration = new CloudStackClientConfiguration([
         'api_key'      => '',               // YOUR_API_KEY (required)
         'secret_key'   => '',               // YOUR_SECRET_KEY (required)
         'host'         => 'localhost',      // Your CloudStack host (required)
