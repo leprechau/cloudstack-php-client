@@ -326,9 +326,6 @@ STRING;
      * @param array \$data    
      */
     public function __construct(?int \$requestPage, ?int \$requestPageSize, int \$totalReturnCount, array \$data) {
-        \$this->requestPage = \$requestPage;
-        \$this->requestPageSize = \$requestPageSize;
-        \$this->totalReturnCount = \$totalReturnCount;
 
 STRING;
         } else {
@@ -337,7 +334,6 @@ STRING;
      * @param array \$data    
      */
     public function __construct(int \$totalReturnCount, array \$data) {
-        \$this->totalReturnCount = \$totalReturnCount;
 
 STRING;
         }
@@ -353,81 +349,100 @@ STRING;
 
     // if this is a very simple class, just return the loop and move on.
     if (0 === $datesCnt && 0 === $objectsCnt) {
-        return $c . <<<STRING
+        $c .= <<<STRING
         foreach (\$data as \$k => \$v) {
             \$this->{\$k} = \$v;
         }
-    }
+
 STRING;
-    }
+    } else {
+        // otherwise, do stuff.
+        // TODO: This could stand to be improved.
 
-    // otherwise, do stuff.
-    // TODO: This could stand to be improved.
-
-    // zero out any predefined values present in the response class
-    foreach ($obj->getProperties() as $name => $property) {
-        if ($property->isCollection() && $property instanceof ObjectVariable) {
-            $c .= "        \$this->{$name} = [];\n";
-        }
-    }
-
-    // loop through response data and construct object
-    $c .= "        foreach(\$data as \$k => \$v) {\n";
-
-    $first = true;
-
-    foreach ($obj->getProperties() as $name => $property) {
-        $name = $property->getName();
-
-        if (in_array($name, $dates, true)) {
-            // if this field is a known date field, turn into an object
-            if ($first) {
-                $c .= '            if ';
-                $first = false;
-            } else {
-                $c .= ' else if ';
+        // zero out any predefined values present in the response class
+        foreach ($obj->getProperties() as $name => $property) {
+            if ($property->isCollection() && $property instanceof ObjectVariable) {
+                $c .= "        \$this->{$name} = [];\n";
             }
+        }
 
-            $c .= <<<STRING
+        // loop through response data and construct object
+        $c .= "        foreach(\$data as \$k => \$v) {\n";
+
+        $first = true;
+
+        foreach ($obj->getProperties() as $name => $property) {
+            $name = $property->getName();
+
+            if (in_array($name, $dates, true)) {
+                // if this field is a known date field, turn into an object
+                if ($first) {
+                    $c .= '            if ';
+                    $first = false;
+                } else {
+                    $c .= ' else if ';
+                }
+
+                $c .= <<<STRING
 ('{$name}' === \$k && '' !== (\$v = trim((string)\$v))) {
                 \$this->{$name} = Types\\DateType::fromApiDate(\$v);
             }
 STRING;
-        }
-
-        if ($property instanceof ObjectVariable) {
-            // if this field is an object, construct
-            if ($first) {
-                $c .= '            if ';
-                $first = false;
-            } else {
-                $c .= ' else if ';
             }
 
-            if ($property->isCollection()) {
-                $c .= "('{$name}' === \$k && is_array(\$v)) {\n";
-                $c .= "                foreach(\$v as \$value) {\n";
-                $c .= "                    \$this->{$name}[] = new " . determineClass($property) . "(\$value);\n";
-                $c .= <<<STRING
+            if ($property instanceof ObjectVariable) {
+                // if this field is an object, construct
+                if ($first) {
+                    $c .= '            if ';
+                    $first = false;
+                } else {
+                    $c .= ' else if ';
+                }
+
+                if ($property->isCollection()) {
+                    $c .= "('{$name}' === \$k && is_array(\$v)) {\n";
+                    $c .= "                foreach(\$v as \$value) {\n";
+                    $c .= "                    \$this->{$name}[] = new " . determineClass($property) . "(\$value);\n";
+                    $c .= <<<STRING
                 }
             }
 STRING;
 
-            } else {
-                $c .= "('{$name}' === \$k && null !== \$v) {\n";
-                $c .= "                \$this->{$name} = new " . determineClass($property) . "(\$value);\n";
-                $c .= <<<STRING
+                } else {
+                    $c .= "('{$name}' === \$k && null !== \$v) {\n";
+                    $c .= "                \$this->{$name} = new " . determineClass($property) . "(\$value);\n";
+                    $c .= <<<STRING
             }
 STRING;
+                }
             }
         }
-    }
 
-    return $c . <<<STRING
+        $c .= <<<STRING
  else {
                 \$this->{\$k} = \$v;
             }
         }
-    }
+
 STRING;
+    }
+
+
+    if ($api) {
+        if ($api->isPageable()) {
+            $c .= <<<PHP
+        \$this->requestPage = \$requestPage;
+        \$this->requestPageSize = \$requestPageSize;
+        \$this->totalReturnCount = \$totalReturnCount;
+
+PHP;
+        } elseif ($api->isList()) {
+            $c .= <<<PHP
+        \$this->totalReturnCount = \$totalReturnCount;
+
+PHP;
+        }
+    }
+
+    return $c . "    }";
 }
