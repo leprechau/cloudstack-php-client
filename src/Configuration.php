@@ -38,8 +38,11 @@ class Configuration
         $this->config = $config;
         $this->eventTypeMap = require __DIR__ . '/../files/command_event_map.php';
 
-        $this->environments = new Environments($logger,$config['environments'] ?? []);
-        $this->overloadedClasses = new OverloadedClasses($logger,$config['overloaded_classes'] ?? []);
+        $this->environments = new Environments($logger, $config['environments'] ?? []);
+        $this->overloadedClasses = new OverloadedClasses(
+            $logger,
+            $config['overloaded_classes'] ?? $config['overloadedClasses'] ?? []
+        );
     }
 
     public function __debugInfo()

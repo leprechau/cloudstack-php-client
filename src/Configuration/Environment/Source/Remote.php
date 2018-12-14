@@ -8,6 +8,7 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\RequestOptions;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\SourceProviderInterface;
+use function MyENA\CloudStackClientGenerator\cleanKey;
 
 /**
  * Class Remote
@@ -57,6 +58,7 @@ class Remote implements SourceProviderInterface
         $clientClass = GuzzleClient::class;
         $clientConfig = [];
         foreach ($conf as $k => $v) {
+            $k = cleanKey($k);
             if ('httpClient' === $k) {
                 list($clientClass, $clientConfig) = $this->parseHttpClientEntry($v, $clientClass);
                 continue;

@@ -8,6 +8,22 @@ use MyENA\CloudStackClientGenerator\API\Variable;
 use MyENA\CloudStackClientGenerator\API\VariableContainer;
 
 /**
+ * @param string $in
+ * @return string
+ */
+function cleanKey(string $in): string
+{
+    if (false === strpos($in, '_')) {
+        return $in;
+    }
+    $s = explode('_', $in);
+    if (1 === count($s)) {
+        return $s[0];
+    }
+    return $s[0] . implode('', array_map('ucfirst', array_splice($s, 1)));
+}
+
+/**
  * @param int $leading
  * @param int $trailing
  * @return string

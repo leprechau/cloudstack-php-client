@@ -303,7 +303,7 @@ abstract class AbstractCommand extends Command
     {
         $this->log->debug("Parsing config file \"{$file}\"...");
         try {
-            $parsed = Yaml::parse(file_get_contents($file));
+            $parsed = Yaml::parseFile($file);
         } catch (\Exception $e) {
             $this->log->error("Unable to parse file \"{$file}\": {$e->getMessage()}");
             return false;

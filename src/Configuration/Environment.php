@@ -2,6 +2,7 @@
 
 namespace MyENA\CloudStackClientGenerator\Configuration;
 
+use function MyENA\CloudStackClientGenerator\cleanKey;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Composer;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Remote;
@@ -73,10 +74,7 @@ class Environment implements \JsonSerializable
         $remoteConf = null;
 
         foreach ($config as $k => $v) {
-            if (false !== strpos($k, '_')) {
-                // TODO: this is a bit...clumsy.
-                $k = lcfirst(implode('', array_map('ucfirst', explode('_', $k))));
-            }
+            $k = cleanKey($k);
 
             if ('cache' === $k) {
                 $this->cache = $this->parseCacheEntry($v);
