@@ -1,0 +1,60 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt('CloudStackRequest') }}
+
+{{ file_header(capabilities) }}
+
+/**
+ * Interface CloudStackRequestInterface
+ * @package {{ namespace_path('CloudStackRequestInterface', true) }}
+ */
+interface CloudStackRequestInterface extends \JsonSerializable
+{
+    /**
+     * Must return the name of the command request property
+     * @return string
+     */
+    public function getCloudStackCommandParameter(): string;
+
+    /**
+     * Must return the upstream command name
+     * @return string
+     */
+    public function getCloudStackCommandName(): string;
+
+    /**
+     * Must return fully qualified class name of response model
+     * @return string
+     */
+    public function getCloudStackResponseModel(): string;
+
+    /**
+     * Must return boolean state of request validity
+     * @return bool
+     */
+    public function isRequestValid(): bool;
+
+    /**
+     * Must throw a {{ namespace_path('CloudStackRequestException', true) }} if validity checks are not met
+     * @throws {{ namespace_path('CloudStackRequestException', true) }}
+     */
+    public function validateRequest(): void;
+
+    /**
+     * Must return an array of [param => value] that can be directly serialized for consumption by CloudStack
+     * @return array
+     */
+    public function toUrlParams(): array;
+}

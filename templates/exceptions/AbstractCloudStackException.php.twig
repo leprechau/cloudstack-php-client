@@ -1,0 +1,81 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+use GuzzleHttp\Exception\TransferException;
+
+{{ file_header(capabilities) }}
+
+/**
+ * Class AbstractCloudStackException
+ */
+abstract class AbstractCloudStackException extends \RuntimeException implements CloudStackException
+{
+    /** @var {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} */
+    private $request;
+
+    /**
+     * AbstractCloudStackException constructor
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @param string $message
+     * @param int $code
+     * @param null|\Throwable $previous
+     */
+    public function __construct(CloudStackRequest\CloudStackRequestInterface $request, $message, $code = 0, ?\Throwable $previous = null)
+    {
+        $this->request = clone $request;
+        parent::__construct($message, $code, $previous);
+    }
+
+    /**
+     * @return {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }}
+     */
+    public function getRequest(): CloudStackRequest\CloudStackRequestInterface
+    {
+        return $this->request;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRequestError(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTransportError(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isResponseError(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAPIError(): bool
+    {
+        return false;
+    }
+}

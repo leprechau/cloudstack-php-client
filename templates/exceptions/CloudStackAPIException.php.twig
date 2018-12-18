@@ -1,0 +1,103 @@
+{#
+This file is part of the CloudStack Client Generator.
+
+(c) Quentin Pleplé <quentin.pleple@gmail.com>
+(c) Aaron Hurt <ahurt@anbcs.com>
+(c) Nathan Johnson <nathan@nathanjohnson.info>
+(c) Daniel Carbone <daniel.p.carbone@gmail.com>
+(c) Bogdan Gabor <bgabor@ena.com>
+
+For the full copyright and license information, please view the LICENSE
+file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+use GuzzleHttp\Exception\TransferException;
+
+{{ file_header(capabilities) }}
+
+/**
+ * CloudStackAPIException
+ *
+ * This exception should only be thrown when CloudStack itself returns an error
+ */
+class CloudStackAPIException extends AbstractCloudStackException
+{
+    /** @var string [] */
+    private $uuidList = [];
+    /** @var int */
+    private $errorCode = 0;
+    /** @var int */
+    private $csErrorCode = 0;
+    /** @var string */
+    private $errorText = 'Unknown Error';
+
+    /**
+     * CloudStackAPIException Constructor
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request Originating request
+     * @param array $response JSON-decoded error response from CloudStack
+     * @param \Throwable $previous Previous exception, if any
+     */
+    public function __construct(CloudStackRequest\CloudStackRequestInterface $request, array $response, \Throwable $previous = null)
+    {
+        if (isset($response['uuidlist']) && is_array($response['uuidlist'])) {
+            $this->uuidList = $response['uuidlist'];
+        }
+        $this->errorCode = (int)($response['errorcode'] ?? 0);
+        $this->csErrorCode = (int)($response['cserrorcode'] ?? 0);
+        $this->errorText = (string)($response['errortext'] ?? '');
+        parent::__construct(
+            $request,
+            sprintf(
+                'Code: %d; CloudStack Code: %d; Message: %s',
+                $this->errorCode,
+                $this->csErrorCode,
+                $this->errorText
+            ),
+            $this->errorCode,
+            $previous
+        );
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAPIError(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getUUIDList(): array
+    {
+        return $this->uuidList;
+    }
+
+    /**
+     * @return int
+     */
+    public function getErrorCode(): int
+    {
+        return $this->errorCode;
+    }
+
+    /**
+     * @return int
+     */
+    public function getCSErrorCode(): int
+    {
+        return $this->csErrorCode;
+    }
+
+    /**
+     * @return string
+     */
+    public function getErrorText(): string
+    {
+        return $this->errorText;
+    }
+}

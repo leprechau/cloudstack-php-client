@@ -14,6 +14,9 @@ use Psr\Log\LoggerInterface;
  */
 class Generator
 {
+    const TEMPLATE_DIR     = __DIR__ . '/../templates';
+    const COMMAND_MAP_FILE = __DIR__ . '/../files/command_event_map.php';
+
     /** @var \MyENA\CloudStackClientGenerator\Configuration */
     protected $config;
     /** @var \MyENA\CloudStackClientGenerator\Configuration\Environment */
@@ -62,13 +65,11 @@ class Generator
 
         $this->log->info('Generator constructing with environment "' . $environment->getName() . '"');
 
-        $cmdMapFile = __DIR__ . '/../files/command_event_map.php';
-        $this->log->debug('Loading command map from ' . $cmdMapFile);
-        $this->commandEventMap = require $cmdMapFile;
+        $this->log->debug('Loading command map from ' . self::COMMAND_MAP_FILE);
+        $this->commandEventMap = require self::COMMAND_MAP_FILE;
 
-        $templateDir = __DIR__ . '/../templates';
-        $this->log->debug('Loading Twig with template dir ' . $templateDir);
-        $twigLoader = new \Twig_Loader_Filesystem($templateDir, true);
+        $this->log->debug('Loading Twig with template dir ' . self::TEMPLATE_DIR);
+        $twigLoader = new \Twig_Loader_Filesystem(self::TEMPLATE_DIR, true);
         $this->twig = new \Twig_Environment(
             $twigLoader,
             ['debug' => true, 'strict_variables' => true, 'autoescape' => false]
@@ -364,6 +365,40 @@ class Generator
     }
 
     /**
+     * @param string $file
+     * @param string $data
+     * @return bool|int
+     */
+    protected function writeFile(string $file, string $data)
+    {
+        $this->log->debug('Writing ' . mb_strlen($data) . ' bytes to ' . $file);
+        return file_put_contents($file, $data);
+    }
+
+    /**
+     * @param string $sourcePrefix
+     * @param string $outputPrefix
+     * @param array $additionalTwigArgs
+     * @throws \Twig_Error_Loader
+     * @throws \Twig_Error_Runtime
+     * @throws \Twig_Error_Syntax
+     */
+    protected function writeFromDirectory(
+        string $outputPrefix,
+        string $sourcePrefix,
+        array $additionalTwigArgs = []
+    ): void {
+        foreach (glob("{$sourcePrefix}/*.php.twig", GLOB_NOSORT) as $template) {
+            $bits = preg_split('/[\/\\\]/S', $template);
+            $classFile = substr(end($bits), 0, -5);
+            $this->writeFile(
+                "{$outputPrefix}/{$classFile}",
+                $this->twig->load(str_replace(self::TEMPLATE_DIR, '', $template))->render($additionalTwigArgs)
+            );
+        }
+    }
+
+    /**
      * @throws \Twig_Error_Loader
      * @throws \Twig_Error_Runtime
      * @throws \Twig_Error_Syntax
@@ -412,41 +447,24 @@ class Generator
             $this->twig->load('helpers.php.twig')->render([])
         );
 
-        $this->writeFile(
-            $this->requestDir . '/CloudStackRequestInterfaces.php',
-            $this->twig->load('requests/interfaces.php.twig')->render([])
-        );
+        // request interfaces
+        $this->writeFromDirectory($this->requestDir, __DIR__ . '/../templates/requests/interfaces');
 
-        $this->writeFile(
-            $this->responseDir . '/CloudStackResponseInterfaces.php',
-            $this->twig->load('responses/interfaces.php.twig')->render([])
-        );
+        // response interfaces
+        $this->writeFromDirectory($this->responseDir, __DIR__ . '/../templates/responses/interfaces');
 
         $this->writeFile(
             $this->requestDir . '/AccessVmConsoleProxyRequest.php',
             $this->twig->load('requests/accessVmConsoleProxy.php.twig')->render([])
         );
 
-        $this->writeFile(
-            $this->srcDir . '/CloudStackExceptions.php',
-            $this->twig->load('exceptions.php.twig')->render([])
-        );
+        // exception classes
+        $this->writeFromDirectory($this->srcDir, __DIR__ . '/../templates/exceptions');
 
         $this->writeFile(
             $this->srcDir . '/CloudStackGenerationMeta.php',
             $this->twig->load('meta.php.twig')->render([])
         );
-    }
-
-    /**
-     * @param string $file
-     * @param string $data
-     * @return bool|int
-     */
-    protected function writeFile(string $file, string $data)
-    {
-        $this->log->debug('Writing ' . mb_strlen($data) . ' bytes to ' . $file);
-        return file_put_contents($file, $data);
     }
 
     /**
