@@ -14,8 +14,8 @@ use Psr\Log\LoggerInterface;
  */
 class Generator
 {
-    const TEMPLATE_DIR     = __DIR__ . '/../templates';
-    const COMMAND_MAP_FILE = __DIR__ . '/../files/command_event_map.php';
+    private const TEMPLATE_DIR     = __DIR__ . '/../templates';
+    private const COMMAND_MAP_FILE = __DIR__ . '/../files/command_event_map.php';
 
     /** @var \MyENA\CloudStackClientGenerator\Configuration */
     protected $config;
@@ -388,13 +388,16 @@ class Generator
         string $sourcePrefix,
         array $additionalTwigArgs = []
     ): void {
-        foreach (glob("{$sourcePrefix}/*.php.twig", GLOB_NOSORT) as $template) {
-            $bits = preg_split('/[\/\\\]/S', $template);
-            $classFile = substr(end($bits), 0, -5);
-            $this->writeFile(
-                "{$outputPrefix}/{$classFile}",
-                $this->twig->load(str_replace(self::TEMPLATE_DIR, '', $template))->render($additionalTwigArgs)
-            );
+        foreach (new \DirectoryIterator(self::TEMPLATE_DIR.'/'.$sourcePrefix) as $template) {
+            if ($template->isFile() && !$template->isDot() && 'twig' === $template->getExtension()) {
+                $classFile = $template->getBasename('.twig');
+                $this->writeFile(
+                    "{$outputPrefix}/{$classFile}",
+                    $this->twig
+                        ->load("{$sourcePrefix}/{$template->getFilename()}")
+                        ->render($additionalTwigArgs)
+                );
+            }
         }
     }
 
@@ -448,10 +451,10 @@ class Generator
         );
 
         // request interfaces
-        $this->writeFromDirectory($this->requestDir, __DIR__ . '/../templates/requests/interfaces');
+        $this->writeFromDirectory($this->requestDir, 'requests/interfaces');
 
         // response interfaces
-        $this->writeFromDirectory($this->responseDir, __DIR__ . '/../templates/responses/interfaces');
+        $this->writeFromDirectory($this->responseDir, 'responses/interfaces');
 
         $this->writeFile(
             $this->requestDir . '/AccessVmConsoleProxyRequest.php',
@@ -459,7 +462,7 @@ class Generator
         );
 
         // exception classes
-        $this->writeFromDirectory($this->srcDir, __DIR__ . '/../templates/exceptions');
+        $this->writeFromDirectory($this->srcDir, 'exceptions');
 
         $this->writeFile(
             $this->srcDir . '/CloudStackGenerationMeta.php',

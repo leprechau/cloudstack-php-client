@@ -2,6 +2,7 @@
 
 namespace MyENA\CloudStackClientGenerator\Command;
 
+use function GuzzleHttp\default_user_agent;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -96,19 +97,9 @@ __HALT_COMPILER(); ?>
 PHP
         );
 
-        return 0;
-    }
+        $this->log->warning('php-cs.phar written to ' . realpath($target));
 
-    /**
-     * @param string $file
-     */
-    protected function addFile(string $file)
-    {
-        $file = $this->resolvePath($file);
-        if (!$file) {
-            throw new \RuntimeException("{$file} does not exist");
-        }
-        $this->addFileFromString(file_get_contents($file), $file);
+        return 0;
     }
 
     /**
@@ -121,6 +112,18 @@ PHP
             return $in;
         }
         return realpath($this->rootPath . '/' . trim($in, "/"));
+    }
+
+    /**
+     * @param string $file
+     */
+    protected function addFile(string $file)
+    {
+        $file = $this->resolvePath($file);
+        if (!$file) {
+            throw new \RuntimeException("{$file} does not exist");
+        }
+        $this->addFileFromString(file_get_contents($file), $file);
     }
 
     /**

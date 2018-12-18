@@ -46,13 +46,7 @@ STRING
         }
 
         $generator = new Generator($this->log, $this->config, $this->env);
-
-        try {
-            $generator->generate();
-        } catch (\Throwable $e) {
-            $this->log->error("Unable to complete generation: {$e->getMessage()}");
-            return 1;
-        }
+        $generator->generate();
 
         return 0;
     }
