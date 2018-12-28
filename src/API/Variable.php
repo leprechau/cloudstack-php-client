@@ -374,7 +374,7 @@ class Variable
     public function getSwaggerItemsTag(): string
     {
         // TODO: This will need to be updated to properly model things like details maps and request tags...
-        return "@SWG\\Items(type=\"string\")";
+        return "@OA\\Items(type=\"string\")";
     }
 
     /**
@@ -441,14 +441,14 @@ class Variable
     {
         if ($inline) {
             return sprintf(
-                '@SWG\\Property(property="%s",%s%s)',
+                '@OA\\Property(property="%s",%s%s)',
                 $this->getName(),
                 $this->getSwaggerTypeField(true),
                 $this->getSwaggerDescriptionField(false)
             );
         }
 
-        $tag = tagIndent($indent, $nestLevel * 4) . "@SWG\\Property(\n";
+        $tag = tagIndent($indent, $nestLevel * 4) . "@OA\\Property(\n";
         $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . "property=\"{$this->getName()}\",\n";
         $tag .= $this->getSwaggerTypeField(true, false, $indent, $nestLevel + 1) . "\n";
         $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . $this->getSwaggerDescriptionField(false) . "\n";

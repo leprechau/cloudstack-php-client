@@ -19,16 +19,16 @@ use {{ namespace_path('CloudStackRequest') }};
 {{ file_header(capabilities) }}
 
 /**
- * @SWG\Definition(
- *     definition="CloudStackAsyncJobStartResponse",
+ * @OA\Schema(
+ *     schema="CloudStackAsyncJobStartResponse",
  *     type="object",
  *     description="Data about the asynchronous job that was started by the request",
- *     @SWG\Property(
+ *     @OA\Property(
  *          property="id",
  *          type="string",
  *          description="CloudStack internal Async Job ID. Not generally useful."
  *     ),
- *     @SWG\Property(
+ *     @OA\Property(
  *          property="jobid",
  *          type="string",
  *          description="CloudStack public Async Job ID. Actually useful."

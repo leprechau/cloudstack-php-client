@@ -245,7 +245,7 @@ STRING;
      */
     public function getSwaggerItemsTag(): string
     {
-        return "@SWG\\Items(ref=\"{$this->getSwaggerRefValue()}\")";
+        return "@OA\\Items(ref=\"{$this->getSwaggerRefValue()}\")";
     }
 
     /**
@@ -253,7 +253,7 @@ STRING;
      */
     public function getSwaggerRefValue(): string
     {
-        return "#/definitions/{$this->getSwaggerName()}";
+        return "#/components/schemas/{$this->getSwaggerName()}";
     }
 
     /**
