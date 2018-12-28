@@ -53,6 +53,7 @@ class Generator
      * @param \Psr\Log\LoggerInterface $logger
      * @param \MyENA\CloudStackClientGenerator\Configuration $config
      * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+     * @throws \Exception
      */
     public function __construct(LoggerInterface $logger, Configuration $config, Environment $environment)
     {
@@ -69,7 +70,7 @@ class Generator
 
         $templateDir = __DIR__ . '/../templates';
         $this->log->debug('Loading Twig with template dir ' . $templateDir);
-        $twigLoader = new \Twig_Loader_Filesystem($templateDir);
+        $twigLoader = new \Twig_Loader_Filesystem($templateDir, true);
         $this->twig = new \Twig_Environment(
             $twigLoader,
             ['debug' => true, 'strict_variables' => true, 'autoescape' => false]
@@ -97,7 +98,7 @@ class Generator
      * @throws \Twig_Error_Runtime
      * @throws \Twig_Error_Syntax
      */
-    public function generate()
+    public function generate(): void
     {
         $this->log->info('Initializing directories...');
         $this->initializeDirectories();
@@ -129,6 +130,7 @@ class Generator
         $this->twig->addGlobal('env', $this->env);
         $this->twig->addGlobal('log', $this->log);
         $this->twig->addGlobal('capabilities', $capabilities);
+        $this->twig->addGlobal('overloadedClasses', $this->config->getOverloadedClasses());
 
         $this->log->info('Writing static templates...');
         $this->writeOutStaticTemplates();
@@ -141,11 +143,12 @@ class Generator
         $this->writeOutSharedResponseModels();
         $this->log->info('Writing Response Models...');
         $this->writeOutResponseModels();
-        $this->log->info('Writing Request Overloaded Models...');
-        $this->writeOutOverloadedModels();
     }
 
-    protected function initializeDirectories()
+    /**
+     * Attempts to clean up output directories
+     */
+    protected function initializeDirectories(): void
     {
         if (!is_dir($this->srcDir) && !mkdir($this->srcDir)) {
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->srcDir));
@@ -172,7 +175,7 @@ class Generator
     /**
      * @param string $dir
      */
-    protected function cleanDirectory(string $dir)
+    protected function cleanDirectory(string $dir): void
     {
         if (0 < ($cnt = count(($phpFiles = glob($dir . '/*.php'))))) {
             $this->log->info(sprintf('Directory "%s" has "%d" php file%s, emptying...', $dir, $cnt,
@@ -190,7 +193,7 @@ class Generator
     /**
      * @param array $apis
      */
-    protected function compileAPIs(array $apis)
+    protected function compileAPIs(array $apis): void
     {
         foreach ($apis as $apiDef) {
             $api = new API();
@@ -223,10 +226,10 @@ class Generator
     }
 
     /**
-     * @param API $api
+     * @param \MyENA\CloudStackClientGenerator\API $api
      * @param array $params
      */
-    protected function parseParameters(API $api, array $params)
+    protected function parseParameters(API $api, array $params): void
     {
         foreach ($params as $param) {
             // blank objects, why do you exist?
@@ -243,18 +246,15 @@ class Generator
     /**
      * @param bool $inResponse
      * @param \stdClass $def
-     * @return \MyENA\CloudStackClientGenerator\API\Variable
+     * @return \MyENA\CloudStackClientGenerator\API\Variable|null
      */
-    protected function buildVariable(bool $inResponse, \stdClass $def)
+    protected function buildVariable(bool $inResponse, \stdClass $def): ?Variable
     {
-
         if (!isset($def->name)) {
             return null;
         }
 
-        $var = new Variable($inResponse);
-
-        $var->setName(trim($def->name));
+        $var = new Variable($inResponse, trim($def->name));
         $var->setType($def->type);
 
         if (isset($def->description)) {
@@ -288,20 +288,20 @@ class Generator
     }
 
     /**
-     * @param API $api
+     * @param \MyENA\CloudStackClientGenerator\API $api
      * @param array $response
      */
-    protected function parseResponse(API $api, array $response)
+    protected function parseResponse(API $api, array $response): void
     {
-        $obj = new ObjectVariable(true, $this->env->getNamespace());
-        $obj->setName($api->getName());
+        $obj = new ObjectVariable(true, $api->getName(), $this->env->getNamespace(), false);
+        $obj->setOverloadedClass($this->config->getOverloadedClasses()->getOverloadedClass($obj->getClassName()));
         $obj->setDescription($api->getDescription());
         $obj->setSince($api->getSince());
         $obj->setRelated($api->getRelated());
 
         foreach ($response as $prop) {
             if (isset($prop->response)) {
-                $var = $this->buildSharedResponseObject($prop);
+                $var = $this->getSharedObject($prop);
             } else {
                 $var = $this->buildVariable(true, $prop);
             }
@@ -322,21 +322,18 @@ class Generator
      * @param \stdClass $def
      * @return \MyENA\CloudStackClientGenerator\API\ObjectVariable
      */
-    protected function buildSharedResponseObject(\stdClass $def)
+    protected function getSharedObject(\stdClass $def): ObjectVariable
     {
         $name = trim($def->name);
 
         if (isset($this->sharedObjectMap[$name])) {
             $this->parseObjectProperties($this->sharedObjectMap[$name], $def->response);
-
             return $this->sharedObjectMap[$name];
         }
-
-        $obj = new ObjectVariable(true, $this->env->getNamespace());
-        $obj->setName($name);
+        $obj = new ObjectVariable(true, $name, $this->env->getNamespace(), true);
+        $obj->setOverloadedClass($this->config->getOverloadedClasses()->getOverloadedClass($obj->getClassName()));
         $obj->setType($def->type);
         $obj->setDescription($def->type);
-        $obj->setShared(true);
 
         $this->parseObjectProperties($obj, $def->response);
 
@@ -349,7 +346,7 @@ class Generator
      * @param \MyENA\CloudStackClientGenerator\API\ObjectVariable $object
      * @param array $defs
      */
-    protected function parseObjectProperties(ObjectVariable $object, array $defs)
+    protected function parseObjectProperties(ObjectVariable $object, array $defs): void
     {
         $properties = $object->getProperties();
 
@@ -474,43 +471,15 @@ class Generator
         $template = $this->twig->load('models/request.php.twig');
 
         foreach ($this->apis as $api) {
+            $this->log->info(sprintf(
+                'Writing request class for API %s...',
+                $api->getName()
+            ));
             $className = $api->getRequestClassName();
             $this->writeFile(
                 $this->requestDir . '/' . $className . '.php',
                 $template->render(['api' => $api])
             );
-        }
-    }
-    /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
-     */
-    protected function writeOutOverloadedModels()
-    {
-        foreach ($this->config->getOverloadedClasses() as $overloadedClass) {
-            if(array_key_exists(explode("Request",lcfirst($overloadedClass->getName()))[0],$this->apis)){
-                $template = $this->twig->load('models/request.php.twig');
-                $path = $this->requestDir;
-                $this->writeFile(
-                    $path . '/' . $overloadedClass->getOverload() . '.php',
-                    $template->render([
-                        'api'       => $this->apis[explode("Request",lcfirst($overloadedClass->getName()))[0]],
-                        'overloadClassName' => $overloadedClass->getOverload(),
-                    ])
-                );
-            }
-            if(array_key_exists(strtolower($overloadedClass->getName()),$this->sharedObjectMap)){
-                $template = $this->twig->load('models/response.php.twig');
-                $path = $this->responseDir;
-                $this->writeFile(
-                    $path . '/' . $overloadedClass->getOverload() . '.php',
-                    $template->render([
-                        'obj'       => $this->sharedObjectMap[strtolower($overloadedClass->getName())],
-                        'overloadClassName' => $overloadedClass->getOverload(),
-                    ])
-                );
-            }
         }
     }
 
@@ -553,12 +522,18 @@ class Generator
         }
     }
 
-    protected function registerTwigExtensions()
+    /**
+     * Registers any / all extensions needed for Twig generation
+     */
+    protected function registerTwigExtensions(): void
     {
         $this->twig->addExtension(new \Twig_Extensions_Extension_Text());
     }
 
-    protected function registerTwigFilters()
+    /**
+     * Registers a few filters for use in Twig templates
+     */
+    protected function registerTwigFilters(): void
     {
         $this->twig->addFilter(new \Twig_Filter(
             'ucfirst',
@@ -569,6 +544,11 @@ class Generator
         ));
     }
 
+    /**
+     * Registers a few functions for use in Twig templates
+     *
+     * @throws \Exception
+     */
     protected function registerTwigFunctions()
     {
         $map = $this->commandEventMap;
@@ -678,6 +658,22 @@ class Generator
         $this->twig->addFunction(new \Twig_Function(
             'file_header',
             '\\MyENA\\CloudStackClientGenerator\\buildFileHeader',
+            ['is_safe' => ['html']]
+        ));
+
+        $this->twig->addFunction(new \Twig_Function(
+            'determine_class',
+            '\\MyENA\\CloudStackClientGenerator\\determineClass',
+            ['is_safe' => ['html']]
+        ));
+        $this->twig->addFunction(new \Twig_Function(
+            'determine_swagger_name',
+            '\\MyENA\\CloudStackClientGenerator\\determineSwaggerName',
+            ['is_safe' => ['html']]
+        ));
+        $this->twig->addFunction(new \Twig_Function(
+            'object_constructor',
+            '\\MyENA\\CloudStackClientGenerator\\objectConstructor',
             ['is_safe' => ['html']]
         ));
     }

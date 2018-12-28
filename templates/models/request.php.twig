@@ -45,7 +45,7 @@ use {{ namespace_path('CloudStackHelpers') }};{% endif %}
  * Class {{ api.requestClassname }}
  * @package {{ namespace_path('CloudStackRequest', true) }}
 {{ since_tag_line(api.since, 0, true) }} */
-class {% if overloadClassName is defined %}{{overloadClassName}} extends {{ api.requestClassname }}{% else %}{{ api.requestClassname }} implements CloudStackRequestInterface, CloudStackApiCommandRequest{% if api.isList %}{% if api.pageable %}, CloudStackPageableListRequest{% else %}, CloudStackListRequest{% endif %}{% endif %}{% if api.isAsync %}, CloudStackAsynchronousRequest{% else %}, CloudStackSynchronousRequest{% endif %}{% if api.isCacheable %}, CloudStackCacheableRequest{% endif %}{% endif %}
+class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudStackApiCommandRequest{% if api.isList %}{% if api.pageable %}, CloudStackPageableListRequest{% else %}, CloudStackListRequest{% endif %}{% endif %}{% if api.isAsync %}, CloudStackAsynchronousRequest{% else %}, CloudStackSynchronousRequest{% endif %}{% if api.isCacheable %}, CloudStackCacheableRequest{% endif %}
 
 {
 {% if api.isAsync %}
@@ -53,12 +53,12 @@ class {% if overloadClassName is defined %}{{overloadClassName}} extends {{ api.
 {% endif %}
     const COMMAND_NAME = '{{ api.name }}';
 {% if requiredParamLength > 0 or optionalParamLength > 0 %}
-
 {% for prop in api.parameters %}
+
 {{ prop.propertyDocBloc }}
     private ${{ prop.name }};
-
 {% endfor %}{% endif %}{% if api.isCacheable %}
+
     /**
      * If true, allows the response to be pulled from cache rather than being executed against ACS
      * @var bool
@@ -76,78 +76,9 @@ class {% if overloadClassName is defined %}{{overloadClassName}} extends {{ api.
      * @var int
      */
     private $responseCacheTTL = {{ env.cache.commandTTL(api.name) }};
-
-{% endif %}{% if requiredParamLength > 0 or optionalParamLength > 0 %}
-    /**
-     * {{ api.requestClassname }} Constructor
-     *
-{% for param in requiredParams %}
-     * @param {{ param.PHPTypeTagValue }} ${{ param.name }} {{ param.description|raw|ucfirst }}
-{% endfor %}
-{% if optionalParamLength > 0 %}
-     * @param array $optArgs {
-{# document all optional paramaters #}
-{% for param in optionalParams %}
-     *     @type {{ param.PHPTypeTagValue }} ${{ param.name }} {{ param.description|raw|ucfirst }}
-{% endfor %}
-{# end optional arguments #}
-     * }
-{% endif %}
-{% if api.isCacheable %}
-     * @param bool $useCachedResponse Whether to allow the use of a previously cached response for this specific request
-     * @param bool $enableResponseCaching Whether to allow the response from this specific request to be cached for later use
-     * @param int $cacheTTL Time in seconds to cache response, if allowed
-{% endif %}
-     */
-    public function __construct ({% for param in requiredParams %}{{ loop.index0 > 0 ? ', ' : '' }}{% if 'array' == param.phpType %}array {% endif %}${{ param.name }}{% endfor %}
-{# end required #}
-{# append optional arguments if needed #}
-{% if optionalParamLength > 0 %}{% if requiredParamLength > 0 %}, {% endif %}array $optArgs = []{% endif %}
-{% if api.isCacheable %}{% if requiredParamLength > 0 or optionalParamLength > 0 %}, {% endif %}bool $useCachedResponse = {{ env.cache.isCommandEnabled(api.name) ? 'true' : 'false' }}, bool $enableResponseCaching = {{ env.cache.isCommandEnabled(api.name) ? 'true' : 'false' }}, int $cacheTTL = {{ env.cache.commandTTL(api.name) }}{% endif %})
-    {
-{% for param in requiredParams %}
-        $this->set{{ param.name|capitalize }}(${{ param.name }});
-{% endfor %}{% if 0 != optionalParamLength %}
-        foreach($optArgs as $k => $v) {
-            $this->{'set'.ucfirst($k)}($v);
-        }
-{% endif %}{% if api.isCacheable %}
-        $this->cachedResponseAllowed = $useCachedResponse;
-        $this->responseCachingEnabled = $enableResponseCaching;
-        $this->responseCacheTTL = $cacheTTL;
-{% endif %}
-    }
 {% endif %}
 
-    /**
-     * @param array $data
-     * @return {{ namespace_path('CloudStackRequest\\' ~ api.requestClassname, true) }}
-     */
-    public static function fromArray(array $data = []): {{ api.requestClassName }}
-    {
-{% if requiredParamLength == 0 and optionalParamLength == 0 %}
-        return new static;
-{% elseif 0 == requiredParamLength %}{# this object only contains optional parameters #}
-        return new static($data);
-{% else %}{% for param in requiredParams %}
-        if (isset($data['{{ param.name }}'])) {
-            ${{ param.name }} = $data['{{ param.name }}'];
-            unset($data['{{ param.name }}']);
-        } else {
-            throw new \DomainException('{{ api.requestClassname }}::fromArray - Required parameter "{{ param.name }}" not found in $data.');
-        }
-
-{% endfor %}
-        $n = new static({% for param in requiredParams %}{{ loop.index0 > 0 ? ',' : '' }}
-            ${{ param.name }}{% endfor %}{% if optionalParamLength > 0 %}{% if requiredParamLength > 0 %},
-{% endif %}
-            $data{% endif %}
-
-        );
-
-        return $n;
-{% endif %}
-    }
+{% include "models/request/constructor.php.twig" with {'params': params, 'requiredParams': requiredParams, 'optionalParams': optionalParams, 'requiredParamLength': requiredParamLength, 'optionalParamLength': optionalParamLength, 'hasMapParameter': hasMapParameter} %}
 
 {% for prop in api.parameters %}
 {% include "models/getter.php.twig" with {'prop': prop, 'env': env} %}
@@ -178,7 +109,7 @@ class {% if overloadClassName is defined %}{{overloadClassName}} extends {{ api.
      */
     public function getCloudStackResponseModel(): string
     {
-        return '{{ api.response.FQName|replace({"\\": "\\\\"}) }}';
+        return '{{ determine_class(api.response, true) | replace({"\\": "\\\\"}) }}';
     }
 {% if api.isAsync %}
 

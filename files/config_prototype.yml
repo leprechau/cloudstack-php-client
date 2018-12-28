@@ -66,8 +66,11 @@ php_cs_generator:
         key: ~ # your api key
         secret: ~ # your api secret
   # allows you to extend the classes constructed by this lib with your own class
+  # NOTE: Currently only response classes are allowed to be overloaded
   overloaded_classes:
   - name: Tags                  # name of class you are overloading
     overload: MyGreatTagsClass  # fully qualified name of class extending the base class
-  - name: ListVirtualMachinesRequest
-    overload: DoSomethingCrazyRequest
+    swagger: ~ # Name of Swagger definition you have for the class.  This is only used if you are overloading a field on a response object.  The default Swagger definition name will be left in place if you do not provide one of your own.
+  - name: ListTemplatesResponse
+    overload: \My\Neato\ListTemplatesResponse
+    swagger: MyNeatoListTemplatesResponse

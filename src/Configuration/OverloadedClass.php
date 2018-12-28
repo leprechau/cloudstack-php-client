@@ -14,37 +14,64 @@ class OverloadedClass implements \JsonSerializable
     private $logger;
 
     /** @var string */
-    private $name;
+    private $overloadedClass;
     /** @var string */
-    private $overload;
+    private $fqName;
+    /** @var string|null */
+    private $swaggerName;
+
+    /** @var string */
+    private $className;
 
     /**
      * OverloadedClass constructor.
      * @param \Psr\Log\LoggerInterface $logger
-     * @param string $name
-     * @param string $overload
+     * @param string $overloadedClass
+     * @param string $fqName
+     * @param string|null $swaggerName
      */
-    public function __construct(LoggerInterface $logger, string $name, string $overload)
+    public function __construct(LoggerInterface $logger, string $overloadedClass, string $fqName, ?string $swaggerName)
     {
         $this->logger = $logger;
-        $this->name = $name;
-        $this->overload = $overload;
+        $this->overloadedClass = $overloadedClass;
+        $this->fqName = $fqName;
+        $this->swaggerName = $swaggerName;
+
+        // attempt to determine actual classname
+        $path = array_filter(array_map('trim', explode('\\', $fqName)));
+        $this->className = (string)end($path);
     }
 
     /**
      * @return string
      */
-    public function getName(): string
+    public function getOverloadedClass(): string
     {
-        return $this->name;
+        return $this->overloadedClass;
     }
 
     /**
      * @return string
      */
-    public function getOverload(): string
+    public function getFQName(): string
     {
-        return $this->overload;
+        return $this->fqName;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getSwaggerName(): ?string
+    {
+        return $this->swaggerName;
+    }
+
+    /**
+     * @return string
+     */
+    public function getClassName(): string
+    {
+        return $this->className;
     }
 
     /**
@@ -53,8 +80,9 @@ class OverloadedClass implements \JsonSerializable
     public function jsonSerialize()
     {
         return [
-            'name'     => $this->getName(),
-            'overload' => $this->getOverload(),
+            'name'     => $this->getOverloadedClass(),
+            'overload' => $this->getFQName(),
+            'swagger'  => $this->getSwaggerName(),
         ];
     }
 }
