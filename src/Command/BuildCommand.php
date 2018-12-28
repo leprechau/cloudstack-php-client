@@ -44,7 +44,7 @@ class BuildCommand extends Command
     protected function configure()
     {
         $this
-            ->setName('phpcs:build')
+            ->setName('cs-gen:build')
             ->setDescription('Used to build redistributable phar')
             ->setHelp(<<<STRING
 This command is designed to be used in conjunction with the "build" script defined in composer.json
@@ -59,9 +59,9 @@ STRING
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->log->info('Building php-cs.phar...');
+        $this->log->info('Building php-cloudstack-generator.phar...');
 
-        $target = __DIR__ . '/../../build/php-cs.phar';
+        $target = __DIR__ . '/../../build/php-cloudstack-generator.phar';
 
         if (file_exists($target)) {
             $this->log->info('Cleaning up previous build...');
@@ -75,7 +75,7 @@ STRING
             \FilesystemIterator::CURRENT_AS_FILEINFO |
             \FilesystemIterator::KEY_AS_FILENAME |
             \FilesystemIterator::SKIP_DOTS,
-            'php-cs.phar');
+            'php-cloudstack-generator.phar');
 
         $this->addFile('composer.json');
         $this->addFile('LICENSE');
@@ -83,21 +83,21 @@ STRING
         $this->addDirectory('templates');
         $this->addDirectory('src');
         $this->addDirectory('vendor');
-        $this->addFile('bin/php-cs');
+        $this->addFile('bin/php-cloudstack-generator');
 
         $this->phar->setStub(/** @lang PHP */
             <<<PHP
 #!/usr/bin/env php
 <?php
-Phar::mapPhar('php-cs.phar');
-putenv('PHPCS_PHAR=1');
-define('PHPCS_ROOT', Phar::running(false));
-require 'phar://php-cs.phar/bin/php-cs';
+Phar::mapPhar('php-cloudstack-generator.phar');
+putenv('PHP_CLOUDSTACK_GENERATOR_PHAR=1');
+define('PHP_CLOUDSTACK_GENERATOR_ROOT', Phar::running(false));
+require 'phar://php-cloudstack-generator.phar/bin/php-cloudstack-generator';
 __HALT_COMPILER(); ?>
 PHP
         );
 
-        $this->log->warning('php-cs.phar written to ' . realpath($target));
+        $this->log->warning('php-cloudstack-generator.phar written to ' . realpath($target));
 
         return 0;
     }

@@ -52,7 +52,7 @@ abstract class AbstractCommand extends Command
      */
     protected function generateName(string $commandName): string
     {
-        return "phpcs:{$commandName}";
+        return "cs-gen:{$commandName}";
     }
 
     protected function addConfigOptions()

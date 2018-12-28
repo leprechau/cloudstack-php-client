@@ -152,15 +152,15 @@ function buildTag(
 function tryResolvePath(string $in): string
 {
     if (0 === strpos($in, './')) {
-        if ($rp = realpath(PHPCS_ROOT . '/' . substr($in, 2))) {
+        if ($rp = realpath(PHP_CLOUDSTACK_GENERATOR_ROOT . '/' . substr($in, 2))) {
             return $rp;
         }
-        return PHPCS_ROOT . '/' . substr($in, 2);
+        return PHP_CLOUDSTACK_GENERATOR_ROOT . '/' . substr($in, 2);
     } elseif (0 !== strpos($in, '/')) {
-        if ($rp = realpath(PHPCS_ROOT . '/' . ltrim($in, "/"))) {
+        if ($rp = realpath(PHP_CLOUDSTACK_GENERATOR_ROOT . '/' . ltrim($in, "/"))) {
             return $rp;
         }
-        return PHPCS_ROOT . '/' . ltrim($in, "/");
+        return PHP_CLOUDSTACK_GENERATOR_ROOT . '/' . ltrim($in, "/");
     } else {
         return $in;
     }

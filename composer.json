@@ -55,11 +55,11 @@
     "build": [
       "rm -rf vendor",
       "composer install --no-interaction --no-dev --no-progress --no-suggest --optimize-autoloader --profile",
-      "/usr/bin/env php ./bin/php-cs phpcs:build -vvv",
-      "chmod +x build/php-cs.phar"
+      "/usr/bin/env php ./bin/php-cloudstack-generator csgen:build -vvv",
+      "chmod +x build/php-cloudstack-generator.phar"
     ]
   },
   "bin": [
-    "bin/php-cs"
+    "bin/php-cloudstack-generator"
   ]
 }

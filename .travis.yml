@@ -3,9 +3,9 @@ dist: trusty
 sudo: false
 
 php:
-#  - 7.0
   - 7.1
-#  - 7.2
+  - 7.2
+  - 7.3
 #
 #matrix:
 #  include:
@@ -19,8 +19,8 @@ script:
 deploy:
   provider: releases
   api_key: $GITHUB_API_TOKEN
-  file: build/php-cs.phar
+  file: build/php-cloudstack-generator.phar
   skip_cleanup: true
   on:
     tags: true
-    php: '7.1'
+    php: '7.2'
