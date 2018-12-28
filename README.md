@@ -40,7 +40,7 @@ The output of this generator has this basic structure:
     | - CloudStackResponse/
       | - # Every API will have a corresponding CloudStack**Response class present in here.  If you have Swagger documentation, add this directory to your project's scan path
     | - CloudStackClient.php                # This is the actual client
-    | - CloudStackClientConfiguration.php   # This is the configuration object that must be provided when constructing a client
+    | - CloudStackConfiguration.php   # This is the configuration object that must be provided when constructing a client
     | - CloudStackGenerationMeta.php        # This file contains metadata about the most recent generation, including date, api source, and environment configuration (sans api keys and secrets)
     | - # several exception and helper classes that you will rarely directly construct
   | - composer.json
@@ -54,7 +54,7 @@ The output of this generator has this basic structure:
   | - CloudStackResponse/
     | - # Every API will have a corresponding CloudStack**Response class present in here.  If you have Swagger documentation, add this directory to your project's scan path
   | - CloudStackClient.php                # This is the actual client
-  | - CloudStackClientConfiguration.php   # This is the configuration object that must be provided when constructing a client
+  | - CloudStackConfiguration.php   # This is the configuration object that must be provided when constructing a client
   | - CloudStackGenerationMeta.php        # This file contains metadata about the most recent generation, including date, api source, and environment configuration (sans api keys and secrets)
   | - # several exception and helper classes that you will rarely directly construct
 ```
@@ -76,7 +76,7 @@ PHP Library Usage
 ### Initialization
 
 ```php
-    $configuration = new CloudStackClientConfiguration([
+    $configuration = new CloudStackConfiguration([
         'api_key'      => '',               // YOUR_API_KEY (required)
         'secret_key'   => '',               // YOUR_SECRET_KEY (required)
         'host'         => 'localhost',      // Your CloudStack host (required)
