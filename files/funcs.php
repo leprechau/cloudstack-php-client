@@ -57,8 +57,8 @@ function buildSwaggerDefinitionTag(
     int $indent = 4,
     bool $newline = false
 ): string {
-    $tag = tagIndent($indent) . "@SWG\\Definition(\n";
-    $tag .= tagIndent($indent, 4) . "definition=\"{$swaggerName}\",\n";
+    $tag = tagIndent($indent) . "@OA\\Schema(\n";
+    $tag .= tagIndent($indent, 4) . "schema=\"{$swaggerName}\",\n";
     $tag .= tagIndent($indent, 4) . "type=\"object\",\n";
     $tag .= tagIndent($indent, 4) . "description=\"{$description}\",\n";
 

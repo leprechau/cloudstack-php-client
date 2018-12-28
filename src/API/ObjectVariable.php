@@ -117,7 +117,7 @@ class ObjectVariable extends Variable
      */
     public function getSwaggerItemsTag(): string
     {
-        return "@SWG\\Items(ref=\"{$this->getSwaggerRefValue()}\")";
+        return "@OA\\Items(ref=\"{$this->getSwaggerRefValue()}\")";
     }
 
     /**
@@ -125,7 +125,7 @@ class ObjectVariable extends Variable
      */
     public function getSwaggerRefValue(): string
     {
-        return "#/definitions/{$this->getSwaggerName()}";
+        return "#/components/schemas/{$this->getSwaggerName()}";
     }
 
     /**
