@@ -7,7 +7,7 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../vendor/autoload.php';
 
-if (!(bool)getenv('PHP_CLOUDSTACK_GENERATOR_ROOT')) {
+if (!(bool)getenv('PHP_CLOUDSTACK_GENERATOR_PHAR')) {
     define('PHP_CLOUDSTACK_GENERATOR_ROOT', realpath(__DIR__.'/../'));
 }
 
