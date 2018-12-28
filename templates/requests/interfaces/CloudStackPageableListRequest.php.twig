@@ -1,0 +1,37 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt('CloudStackRequest') }}
+
+{{ file_header(capabilities) }}
+
+/**
+ * Indicates this is a List Request that accepts "page" and "pagesize" parameters
+ * Interface CloudStackPageableListRequest
+ * @package {{ namespace_path('CloudStackPageableListRequest', true) }}
+ */
+interface CloudStackPageableListRequest extends CloudStackListRequest
+{
+    /**
+     * Returns the page specified for this request
+     * @return null|int
+     */
+    public function getPage(): ?int;
+
+    /**
+     * Returns the page size specified for this request
+     * @return null|int
+     */
+    public function getPagesize(): ?int;
+}

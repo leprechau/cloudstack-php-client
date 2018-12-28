@@ -22,7 +22,7 @@ class Application extends BaseApplication
             new GenerateClientCommand(),
         ];
 
-        if (!(bool)getenv('PHPCS_PHAR')) {
+        if (!(bool)getenv('PHP_CLOUDSTACK_GENERATOR_PHAR')) {
             $commands[] = new BuildCommand();
             $commands[] = new GenerateEventMapCommand();
         }

@@ -1,0 +1,60 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+use GuzzleHttp\Exception\TransferException;
+
+{{ file_header(capabilities) }}
+
+/**
+ * Interface CloudStackException
+ */
+interface CloudStackException extends \Throwable
+{
+    /**
+     * Must return true ONLY if the request failed validation prior to execution
+     *
+     * @return bool;
+     */
+    public function isRequestError(): bool;
+
+    /**
+     * Must return true ONLY if the request failed due to a transport issue
+     *
+     * @return bool
+     */
+    public function isTransportError(): bool;
+
+    /**
+     * Must return true ONLY if the response from CloudStack was unable to be unmarshalled
+     *
+     * @return bool
+     */
+    public function isResponseError(): bool;
+
+    /**
+     * Must return true ONLY if CloudStack returned a non-200 response to the request
+     *
+     * @return bool
+     */
+    public function isAPIError(): bool;
+
+    /**
+     * Must return a clone of the originating request instance
+     *
+     * @return {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }}
+     */
+    public function getRequest(): CloudStackRequest\CloudStackRequestInterface;
+}

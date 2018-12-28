@@ -1,0 +1,56 @@
+{#
+This file is part of the CloudStack Client Generator.
+
+(c) Quentin Pleplé <quentin.pleple@gmail.com>
+(c) Aaron Hurt <ahurt@anbcs.com>
+(c) Nathan Johnson <nathan@nathanjohnson.info>
+(c) Daniel Carbone <daniel.p.carbone@gmail.com>
+(c) Bogdan Gabor <bgabor@ena.com>
+
+For the full copyright and license information, please view the LICENSE
+file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+use GuzzleHttp\Exception\TransferException;
+
+{{ file_header(capabilities) }}
+
+/**
+ * CloudStackRequestException
+ */
+class CloudStackRequestException extends AbstractCloudStackException
+{
+    /** @var array */
+    private $errors;
+
+    /**
+     * CloudStackRequestException constructor
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @param array Error list
+     * @param null|\Throwable $previous
+     */
+    public function __construct(CloudStackRequest\CloudStackRequestInterface $request, array $errors, ?\Throwable $previous = null)
+    {
+        $this->errors = $errors;
+        parent::__construct($request, implode('; ', $errors), 400, $previous);
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRequestError(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+}

@@ -35,7 +35,7 @@ class CloudStackClient
         RequestOptions::DECODE_CONTENT => false,
     ];
 
-    /** @var {{ namespace_path('CloudStackConfiguration', true) }} */
+    /** @var {{ namespace_path('CloudStackClientConfiguration', true) }} */
     protected $configuration;
 
     /** @var \Psr\Log\LoggerInterface */
@@ -47,9 +47,9 @@ class CloudStackClient
     /**
      * CloudStackClient constructor
      *
-     * @param {{ namespace_path('CloudStackConfiguration', true) }} $configuration
+     * @param {{ namespace_path('CloudStackClientConfiguration', true) }} $configuration
      */
-    public function __construct(CloudStackConfiguration $configuration) {
+    public function __construct(CloudStackClientConfiguration $configuration) {
         $this->configuration = $configuration;
         $this->logger = $configuration->getLogger();
         $this->cacheProvider = $configuration->getCacheProvider();
@@ -57,10 +57,10 @@ class CloudStackClient
 
     /**
      * This will construct a new CloudStackClient instance with caching entirely disabled
-     * @param {{ namespace_path('CloudStackConfiguration', true) }} $configuration
+     * @param {{ namespace_path('CloudStackClientConfiguration', true) }} $configuration
      * @return {{ namespace_path('CloudStackClient', true) }}
      */
-    public static function withoutCache(CloudStackConfiguration $configuration): CloudStackClient
+    public static function withoutCache(CloudStackClientConfiguration $configuration): CloudStackClient
     {
         $new = new static($configuration);
         $new->cacheProvider = null;
@@ -76,9 +76,9 @@ class CloudStackClient
     }
 
     /**
-     * @return {{ namespace_path('CloudStackConfiguration', true) }}
+     * @return {{ namespace_path('CloudStackClientConfiguration', true) }}
      */
-    public function getCloudStackClientConfiguration(): CloudStackConfiguration
+    public function getCloudStackClientConfiguration(): CloudStackClientConfiguration
     {
         return $this->configuration;
     }
@@ -181,14 +181,14 @@ class CloudStackClient
 
         if ($cacheable) {
             $cacheID = $this->getRequestCacheID($request);
-        }
+            if ($request->getCachedResponseAllowed()) {{ '{' }}
+{% if env.logging.isDebug %}
+                $this->logger->debug(sprintf('Found command %s cache with id %s', $command, $cacheID));{% endif %}
 
-        if ($cacheable && $request->getCachedResponseAllowed()) {{ '{' }}{% if env.logging.isDebug %}
-            $this->logger->debug(sprintf('Found command %s cache with id %s', $command, $cacheID));{% endif %}
-
-            if ($this->cacheProvider->contains($cacheID)) {
-                if (false !== ($cached = $this->cacheProvider->fetch($cacheID))) {
-                    return $cached;
+                if ($this->cacheProvider->contains($cacheID)) {
+                    if (false !== ($cached = $this->cacheProvider->fetch($cacheID))) {
+                        return $cached;
+                    }
                 }
             }
         }
@@ -225,61 +225,64 @@ class CloudStackClient
             );
         }
 
-        if ($decode) {
-            $responseModel = $request->getCloudStackResponseModel();
-            $decoded = $this->decodeBody($request, $resp);
+        if (!$decode) {
+            // if the raw response has been requested, return immediately
+            return $resp;
+        }
 
-            // if async request, don't test for cache
-            if ($request instanceof CloudStackRequest\CloudStackAsynchronousRequest) {
-                return new CloudStackResponse\AsyncJobStartResponse($decoded, $request);
-            }
+        // otherwise, attempt to decode response into response class and try caching
 
-            if ($request instanceof CloudStackRequest\CloudStackListRequest) {
-                $response = [];
-                if ($decoded) {
-                    $totalCount = (int)($decoded['count'] ?? 0);
-                    unset($decoded['count']);
-                    if (0 < count($decoded) && is_array($first = reset($decoded))) {
-                        if ($request instanceof CloudStackRequest\CloudStackPageableListRequest) {
-                            $page = $request->getPage();
-                            $pageSize = $request->getPagesize();
-                            foreach(reset($decoded) as $item) {
-                                $response[] = new $responseModel($page, $pageSize, $totalCount, $item);
-                            }
-                        } else {
-                            foreach(reset($decoded) as $item) {
-                                $response[] = new $responseModel($totalCount, $item);
-                            }
+        $responseModel = $request->getCloudStackResponseModel();
+        $decoded = $this->decodeBody($request, $resp);
+
+        // if async request, don't test for cache
+        if ($request instanceof CloudStackRequest\CloudStackAsynchronousRequest) {
+            return new CloudStackResponse\AsyncJobStartResponse($decoded, $request);
+        }
+
+        if ($request instanceof CloudStackRequest\CloudStackListRequest) {
+            $response = [];
+            if ($decoded) {
+                $totalCount = (int)($decoded['count'] ?? 0);
+                unset($decoded['count']);
+                if (0 < count($decoded) && is_array($first = reset($decoded))) {
+                    if ($request instanceof CloudStackRequest\CloudStackPageableListRequest) {
+                        $page = $request->getPage();
+                        $pageSize = $request->getPagesize();
+                        foreach(reset($decoded) as $item) {
+                            $response[] = new $responseModel($page, $pageSize, $totalCount, $item);
+                        }
+                    } else {
+                        foreach(reset($decoded) as $item) {
+                            $response[] = new $responseModel($totalCount, $item);
                         }
                     }
                 }
-            } else {
-                $response = new $responseModel($decoded);
             }
-
-            if ($cacheable && $request->getResponseCachingEnabled()) {
-                $ttl = $request->getResponseCacheTTL();
-                if (!$this->cacheProvider->save($cacheID, $response, $ttl)) {
-                    $this->logger->warning(sprintf(
-                        'Unable to store cache for command %s with cache id %s',
-                        $command,
-                        $cacheID
-                    ));
-                }{% if env.logging.isDebug %} else {
-                    $this->logger->debug(sprintf(
-                        'Command %s cache with id %s saved with ttl %d seconds.',
-                        $command,
-                        $cacheID,
-                        $ttl
-                    ));
-                }{% endif %}
-
-            }
-
-            return $response;
+        } else {
+            $response = new $responseModel($decoded);
         }
 
-        return $resp;
+        if ($cacheable && $request->getResponseCachingEnabled()) {
+            $ttl = $request->getResponseCacheTTL();
+            if (!$this->cacheProvider->save($cacheID, $response, $ttl)) {
+                $this->logger->error(sprintf(
+                    'Unable to store cache for command %s with cache id %s',
+                    $command,
+                    $cacheID
+                ));
+            }{% if env.logging.isDebug %} else {
+                $this->logger->debug(sprintf(
+                    'Command %s cache with id %s saved with ttl %d seconds.',
+                    $command,
+                    $cacheID,
+                    $ttl
+                ));
+            }{% endif %}
+
+        }
+
+        return $response;
     }
 
     /**

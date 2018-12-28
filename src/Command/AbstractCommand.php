@@ -52,7 +52,7 @@ abstract class AbstractCommand extends Command
      */
     protected function generateName(string $commandName): string
     {
-        return "phpcs:{$commandName}";
+        return "cs-gen:{$commandName}";
     }
 
     protected function addConfigOptions()
@@ -233,7 +233,7 @@ abstract class AbstractCommand extends Command
                 $source->setScheme($input->getOption(self::OPT_REMOTE_SCHEME));
             }
             if (Configuration\Environment\Source\Remote::DEFAULT_PORT === $source->getPort()) {
-                $source->setPort($input->getOption(self::OPT_REMOTE_PORT));
+                $source->setPort((int)$input->getOption(self::OPT_REMOTE_PORT));
             }
             if ($key = $input->getOption(self::OPT_REMOTE_KEY)) {
                 $source->setKey($key);
@@ -303,7 +303,7 @@ abstract class AbstractCommand extends Command
     {
         $this->log->debug("Parsing config file \"{$file}\"...");
         try {
-            $parsed = Yaml::parse(file_get_contents($file));
+            $parsed = Yaml::parseFile($file);
         } catch (\Exception $e) {
             $this->log->error("Unable to parse file \"{$file}\": {$e->getMessage()}");
             return false;

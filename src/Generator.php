@@ -14,6 +14,9 @@ use Psr\Log\LoggerInterface;
  */
 class Generator
 {
+    private const TEMPLATE_DIR     = __DIR__ . '/../templates';
+    private const COMMAND_MAP_FILE = __DIR__ . '/../files/command_event_map.php';
+
     /** @var \MyENA\CloudStackClientGenerator\Configuration */
     protected $config;
     /** @var \MyENA\CloudStackClientGenerator\Configuration\Environment */
@@ -36,8 +39,6 @@ class Generator
 
     /** @var string */
     protected $srcDir;
-    /** @var string */
-    protected $filesDir;
     /** @var string */
     protected $responseDir;
     /** @var string */
@@ -64,13 +65,11 @@ class Generator
 
         $this->log->info('Generator constructing with environment "' . $environment->getName() . '"');
 
-        $cmdMapFile = __DIR__ . '/../files/command_event_map.php';
-        $this->log->debug('Loading command map from ' . $cmdMapFile);
-        $this->commandEventMap = require $cmdMapFile;
+        $this->log->debug('Loading command map from ' . self::COMMAND_MAP_FILE);
+        $this->commandEventMap = require self::COMMAND_MAP_FILE;
 
-        $templateDir = __DIR__ . '/../templates';
-        $this->log->debug('Loading Twig with template dir ' . $templateDir);
-        $twigLoader = new \Twig_Loader_Filesystem($templateDir, true);
+        $this->log->debug('Loading Twig with template dir ' . self::TEMPLATE_DIR);
+        $twigLoader = new \Twig_Loader_Filesystem(self::TEMPLATE_DIR, true);
         $this->twig = new \Twig_Environment(
             $twigLoader,
             ['debug' => true, 'strict_variables' => true, 'autoescape' => false]
@@ -83,8 +82,11 @@ class Generator
         $this->log->debug('Registering Twig functions...');
         $this->registerTwigFunctions();
 
-        $this->srcDir = sprintf('%s/src', $this->env->getOut());
-        $this->filesDir = sprintf('%s/files', $this->env->getOut());
+        if (null !== $environment->getComposer()) {
+            $this->srcDir = sprintf('%s/src', $this->env->getOut());
+        } else {
+            $this->srcDir = $this->env->getOut();
+        }
         $this->responseDir = sprintf('%s/CloudStackResponse', $this->srcDir);
         $this->responseTypesDir = sprintf('%s/Types', $this->responseDir);
         $this->requestDir = sprintf('%s/CloudStackRequest', $this->srcDir);
@@ -115,10 +117,12 @@ class Generator
         $capabilities = $source->getCapabilities();
 
         $this->log->info("CloudStack Version: {$capabilities->cloudstackversion}");
-        $this->env->getComposer()->setCloudStackVersion($capabilities->cloudstackversion);
+        if (null !== $this->env->getComposer()) {
+            $this->env->getComposer()->setCloudStackVersion($capabilities->cloudstackversion);
 
-        $this->log->info('Validating composer.json...');
-        $this->env->getComposer()->validate();
+            $this->log->info('Validating composer.json...');
+            $this->env->getComposer()->validate();
+        }
 
         $this->compileAPIs($apis);
         ksort($this->apis, SORT_NATURAL);
@@ -153,9 +157,6 @@ class Generator
         if (!is_dir($this->srcDir) && !mkdir($this->srcDir)) {
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->srcDir));
         }
-        if (!is_dir($this->filesDir) && !mkdir($this->filesDir)) {
-            throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->filesDir));
-        }
         if (!is_dir($this->responseDir) && !mkdir($this->responseDir)) {
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->responseDir));
         }
@@ -166,7 +167,6 @@ class Generator
             throw new \RuntimeException(sprintf('Unable to create directory "%s"', $this->requestDir));
         }
         $this->cleanDirectory($this->srcDir);
-        $this->cleanDirectory($this->filesDir);
         $this->cleanDirectory($this->responseDir);
         $this->cleanDirectory($this->responseTypesDir);
         $this->cleanDirectory($this->requestDir);
@@ -365,6 +365,43 @@ class Generator
     }
 
     /**
+     * @param string $file
+     * @param string $data
+     * @return bool|int
+     */
+    protected function writeFile(string $file, string $data)
+    {
+        $this->log->debug('Writing ' . mb_strlen($data) . ' bytes to ' . $file);
+        return file_put_contents($file, $data);
+    }
+
+    /**
+     * @param string $sourcePrefix
+     * @param string $outputPrefix
+     * @param array $additionalTwigArgs
+     * @throws \Twig_Error_Loader
+     * @throws \Twig_Error_Runtime
+     * @throws \Twig_Error_Syntax
+     */
+    protected function writeFromDirectory(
+        string $outputPrefix,
+        string $sourcePrefix,
+        array $additionalTwigArgs = []
+    ): void {
+        foreach (new \DirectoryIterator(self::TEMPLATE_DIR.'/'.$sourcePrefix) as $template) {
+            if ($template->isFile() && !$template->isDot() && 'twig' === $template->getExtension()) {
+                $classFile = $template->getBasename('.twig');
+                $this->writeFile(
+                    "{$outputPrefix}/{$classFile}",
+                    $this->twig
+                        ->load("{$sourcePrefix}/{$template->getFilename()}")
+                        ->render($additionalTwigArgs)
+                );
+            }
+        }
+    }
+
+    /**
      * @throws \Twig_Error_Loader
      * @throws \Twig_Error_Runtime
      * @throws \Twig_Error_Syntax
@@ -376,13 +413,15 @@ class Generator
             file_get_contents(__DIR__ . '/../LICENSE')
         );
 
-        $this->writeFile(
-            $this->env->getOut() . '/composer.json',
-            $this->twig->load('composer.json.twig')->render([])
-        );
+        if (null !== $this->env->getComposer()) {
+            $this->writeFile(
+                $this->env->getOut() . '/composer.json',
+                $this->twig->load('composer.json.twig')->render([])
+            );
+        }
 
         $this->writeFile(
-            $this->srcDir . '/CloudStackConfiguration.php',
+            $this->srcDir . '/CloudStackClientConfiguration.php',
             $this->twig->load('configuration.php.twig')->render([])
         );
 
@@ -411,41 +450,24 @@ class Generator
             $this->twig->load('helpers.php.twig')->render([])
         );
 
-        $this->writeFile(
-            $this->requestDir . '/CloudStackRequestInterfaces.php',
-            $this->twig->load('requests/interfaces.php.twig')->render([])
-        );
+        // request interfaces
+        $this->writeFromDirectory($this->requestDir, 'requests/interfaces');
 
-        $this->writeFile(
-            $this->responseDir . '/CloudStackResponseInterfaces.php',
-            $this->twig->load('responses/interfaces.php.twig')->render([])
-        );
+        // response interfaces
+        $this->writeFromDirectory($this->responseDir, 'responses/interfaces');
 
         $this->writeFile(
             $this->requestDir . '/AccessVmConsoleProxyRequest.php',
             $this->twig->load('requests/accessVmConsoleProxy.php.twig')->render([])
         );
 
-        $this->writeFile(
-            $this->srcDir . '/CloudStackExceptions.php',
-            $this->twig->load('exceptions.php.twig')->render([])
-        );
+        // exception classes
+        $this->writeFromDirectory($this->srcDir, 'exceptions');
 
         $this->writeFile(
             $this->srcDir . '/CloudStackGenerationMeta.php',
             $this->twig->load('meta.php.twig')->render([])
         );
-    }
-
-    /**
-     * @param string $file
-     * @param string $data
-     * @return bool|int
-     */
-    protected function writeFile(string $file, string $data)
-    {
-        $this->log->debug('Writing ' . mb_strlen($data) . ' bytes to ' . $file);
-        return file_put_contents($file, $data);
     }
 
     /**

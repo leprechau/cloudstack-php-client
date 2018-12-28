@@ -2,6 +2,7 @@
 
 namespace MyENA\CloudStackClientGenerator\Configuration;
 
+use function MyENA\CloudStackClientGenerator\cleanKey;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Composer;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Remote;
@@ -73,10 +74,7 @@ class Environment implements \JsonSerializable
         $remoteConf = null;
 
         foreach ($config as $k => $v) {
-            if (false !== strpos($k, '_')) {
-                // TODO: this is a bit...clumsy.
-                $k = lcfirst(implode('', array_map('ucfirst', explode('_', $k))));
-            }
+            $k = cleanKey($k);
 
             if ('cache' === $k) {
                 $this->cache = $this->parseCacheEntry($v);
@@ -139,11 +137,11 @@ class Environment implements \JsonSerializable
     }
 
     /**
-     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer
+     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer|null
      */
-    public function getComposer(): Composer
+    public function getComposer(): ?Composer
     {
-        return $this->composer;
+        return $this->composer ?? null;
     }
 
     /**
@@ -319,8 +317,11 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer
      */
-    protected function parseComposerEntry(string $namespace, $v): Composer
+    protected function parseComposerEntry(string $namespace, $v): ?Composer
     {
+        if (null === $v) {
+            return null;
+        }
         return new Composer($namespace, is_array($v) ? $v : []);
     }
 

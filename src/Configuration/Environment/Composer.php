@@ -11,10 +11,10 @@ use JsonSchema\Validator;
  */
 class Composer
 {
-    const DEFAULT_TYPE = 'library';
-    const DEFAULT_LICENSE = 'MIT';
+    const DEFAULT_TYPE                 = 'library';
+    const DEFAULT_LICENSE              = 'MIT';
     const DEFAULT_DESCRIPTION_TEMPLATE = 'Generated CloudStack API PHP Client built on %s against ACS %s';
-    const DEFAULT_AUTHORS = [
+    const DEFAULT_AUTHORS              = [
         [
             'name'  => 'Quentin Pleplé',
             'email' => 'quentin.pleple@gmail.com',
@@ -36,7 +36,7 @@ class Composer
             'email' => 'bgabor@ena.com',
         ],
     ];
-    const DEFAULT_REQUIRE = [
+    const DEFAULT_REQUIRE              = [
         'php'               => '^7.1',
         'ext-json'          => '*',
         'ext-curl'          => '*',
@@ -45,22 +45,17 @@ class Composer
         'guzzlehttp/guzzle' => '~6',
         'doctrine/cache'    => '~1.7',
     ];
-    const DEFAULT_AUTOLOAD = [
+    const DEFAULT_AUTOLOAD             = [
         'psr-4' => [
 
         ],
-        'files' => [
-            'src/CloudStackRequest/CloudStackRequestInterfaces.php',
-            'src/CloudStackResponse/CloudStackResponseInterfaces.php',
-            'src/CloudStackExceptions.php',
-        ],
     ];
-    const DEFAULT_SUGGEST = [
+    const DEFAULT_SUGGEST              = [
         'zircote/swagger-php' => 'Used to generate Swagger documentation from the generated models',
     ];
 
     const FALLBACK_COMPOSER_SCHEMA = __DIR__ . '/../../../files/composer-schema.json';
-    const FALLBACK_ACS_VERSION = '0.0.0';
+    const FALLBACK_ACS_VERSION     = '0.0.0';
 
     /** @var string */
     private $name;
