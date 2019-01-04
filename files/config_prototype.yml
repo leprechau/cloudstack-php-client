@@ -33,6 +33,10 @@ php_cs_generator:
       apipath: "client/api"
       consolepath: "client/console"
       out: ~ # choose output path
+      # All models have PHPDoc annotations that are parseable via https://github.com/zircote/swagger-php
+      swagger:
+        # Allowable values are 2 or 3. There is no backwards compatibility here, so if you choose 3 it will not work with the parser for 2
+        version: 2
       namespace: "\\MyGreatNamespace"
       # generated composer.json details. any valid composer entries are allowed here, ones that have special treatment are listed below
       # if set to null, will not generate this as a composer package but as raw code files instead.

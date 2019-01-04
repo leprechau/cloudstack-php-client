@@ -3,7 +3,6 @@
 namespace MyENA\CloudStackClientGenerator\Configuration;
 
 use function MyENA\CloudStackClientGenerator\cleanKey;
-use MyENA\CloudStackClientGenerator\Configuration\Environment\Composer;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Remote;
 use MyENA\CloudStackClientGenerator\Configuration\Environment\SourceProviderInterface;
@@ -60,6 +59,8 @@ class Environment implements \JsonSerializable
     private $composer;
     /** @var \MyENA\CloudStackClientGenerator\Configuration\Environment\Logging */
     private $logging;
+    /** @var \MyENA\CloudStackClientGenerator\Configuration\Environment\Swagger */
+    private $swagger;
 
     /**
      * Environment constructor.
@@ -91,6 +92,9 @@ class Environment implements \JsonSerializable
             } elseif ('local' === $k) {
                 $localConf = $v;
                 continue;
+            } elseif ('swagger' === $k) {
+                $this->swagger = $this->parseSwaggerEntry($v);
+                continue;
             }
 
             if (!isset(self::$settableParams[$k])) {
@@ -114,6 +118,9 @@ class Environment implements \JsonSerializable
         // ensure logging is set
         if (!isset($this->logging)) {
             $this->logging = new Environment\Logging();
+        }
+        if (!isset($this->swagger)) {
+            $this->swagger = new Environment\Swagger([]);
         }
 
         $this->logger->debug(sprintf('Environment %s configuration loaded', $this->name));
@@ -139,7 +146,7 @@ class Environment implements \JsonSerializable
     /**
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer|null
      */
-    public function getComposer(): ?Composer
+    public function getComposer(): ?Environment\Composer
     {
         return $this->composer ?? null;
     }
@@ -236,6 +243,14 @@ class Environment implements \JsonSerializable
     }
 
     /**
+     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Swagger
+     */
+    public function getSwagger(): Environment\Swagger
+    {
+        return $this->swagger;
+    }
+
+    /**
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local|null
      */
     public function getLocal(): ?Local
@@ -317,12 +332,12 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Composer
      */
-    protected function parseComposerEntry(string $namespace, $v): ?Composer
+    protected function parseComposerEntry(string $namespace, $v): ?Environment\Composer
     {
         if (null === $v) {
             return null;
         }
-        return new Composer($namespace, is_array($v) ? $v : []);
+        return new Environment\Composer($namespace, is_array($v) ? $v : []);
     }
 
     /**
@@ -338,7 +353,7 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Remote
      */
-    protected function parseRemoteEntry($v)
+    protected function parseRemoteEntry($v): Remote
     {
         return new Remote($this->getAPIPath(), $v);
     }
@@ -347,8 +362,17 @@ class Environment implements \JsonSerializable
      * @param $v
      * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Source\Local
      */
-    protected function parseLocalEntry($v)
+    protected function parseLocalEntry($v): Local
     {
         return new Local($v);
+    }
+
+    /**
+     * @param $v
+     * @return \MyENA\CloudStackClientGenerator\Configuration\Environment\Swagger
+     */
+    protected function parseSwaggerEntry($v): Environment\Swagger
+    {
+        return new Environment\Swagger(is_array($v) ? $v : []);
     }
 }

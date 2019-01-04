@@ -6,6 +6,7 @@ use DCarbone\Go\Time;
 use MyENA\CloudStackClientGenerator\API\ObjectVariable;
 use MyENA\CloudStackClientGenerator\API\Variable;
 use MyENA\CloudStackClientGenerator\API\VariableContainer;
+use MyENA\CloudStackClientGenerator\Configuration\Environment;
 
 /**
  * @param string $in
@@ -43,6 +44,138 @@ function escapeSwaggerString(string $in): string
 }
 
 /**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+ * @param \MyENA\CloudStackClientGenerator\API\ObjectVariable $variable
+ * @return string
+ */
+function buildSwaggerRefValue(Environment $environment, ObjectVariable $variable): string
+{
+    if (2 === $environment->getSwagger()->getVersion()) {
+        return "#/definitions/{$variable->getSwaggerName()}";
+    } else {
+        return "#/components/schemas/{$variable->getSwaggerName()}";
+    }
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+ * @param \MyENA\CloudStackClientGenerator\API\Variable $variable
+ * @return string
+ */
+function buildSwaggerItemsTag(Environment $environment, Variable $variable): string
+{
+    // TODO: This will need to be updated to properly model things like details maps and request tags...
+    if (2 === $environment->getSwagger()->getVersion()) {
+        return ($variable instanceof ObjectVariable) ?
+            '@SWG\\Items(ref="' . buildSwaggerRefValue($environment, $variable) . '")' :
+            "@SWG\\Items(type=\"string\")";
+    } else {
+        return ($variable instanceof ObjectVariable) ?
+            '@OA\\Items(ref=' . buildSwaggerRefValue($environment, $variable) . ')' :
+            "@OA\\Items(type=\"string\")";
+    }
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+ * @param \MyENA\CloudStackClientGenerator\API\Variable $variable
+ * @param bool $trailingComma
+ * @return string
+ */
+function buildSwaggerDescriptionField(Environment $environment, Variable $variable, bool $trailingComma = false): string
+{
+    if ('' === $variable->getDescription()) {
+        return '';
+    }
+    return 'description="' . ucfirst(escapeSwaggerString($variable->getDescription())) . '"' . ($trailingComma ? ',' : '');
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+ * @param \MyENA\CloudStackClientGenerator\API\Variable $variable
+ * @param bool $trailingComma
+ * @param bool $inline
+ * @param int $indent
+ * @param int $nestLevel
+ * @return string
+ */
+function buildSwaggerTypeField(
+    Environment $environment,
+    Variable $variable,
+    bool $trailingComma = false,
+    bool $inline = false,
+    int $indent = 4,
+    int $nestLevel = 1
+): string {
+    $parts = [];
+    if ($variable->isCollection()) {
+        $parts[] = 'type="array"';
+        $parts[] = buildSwaggerItemsTag($environment, $variable);
+    } elseif ($variable instanceof ObjectVariable) {
+        $parts[] = 'type="object"';
+        $parts[] = 'ref="' . buildSwaggerRefValue($environment, $variable) . '"';
+    } elseif ('mixed' === $variable->getPHPType() || $variable->isDate()) {
+        $parts[] = 'type="string"';
+    } else {
+        $parts[] = 'type="' . $variable->getPHPType() . '"';
+    }
+
+    if ($inline) {
+        return implode(',', $parts) . ($trailingComma ? ',' : '');
+    }
+
+    $tag = '';
+    foreach ($parts as $i => $part) {
+        if ($i > 0) {
+            $tag .= ",\n";
+        }
+        $tag .= tagIndent($indent, $nestLevel * 4) . $part;
+    }
+
+    return $tag . ($trailingComma ? ',' : '');
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
+ * @param \MyENA\CloudStackClientGenerator\API\Variable $variable
+ * @param bool $inline
+ * @param int $indent
+ * @param int $nestLevel
+ * @return string
+ */
+function buildSwaggerPropertyTag(
+    Environment $environment,
+    Variable $variable,
+    bool $inline,
+    int $indent,
+    int $nestLevel
+): string {
+    $swg2 = (2 === $environment->getSwagger()->getVersion());
+    if ($inline) {
+        if (2 === $environment->getSwagger()->getVersion()) {
+            $format = '@SWG\\Property(property="%s",%s%s)';
+        } else {
+            $format = '@OA\\Property(property="%s",%s%s)';
+        }
+        return sprintf(
+            $format,
+            $variable->getName(),
+            buildSwaggerTypeField($environment, $variable, true),
+            buildSwaggerDescriptionField($environment, $variable, false)
+        );
+    }
+    $tag = tagIndent($indent, $nestLevel * 4) . ($swg2 ? "@SWG\\Property(\n" : "@OA\\Property(\n");
+    $tag .= tagIndent($indent, ($nestLevel + 1) * 4) . "property=\"" . determineSwaggerName($variable) . "\",\n";
+    $tag .= buildSwaggerTypeField($environment, $variable, true, false, $indent, $nestLevel + 1) . "\n";
+    $tag .= tagIndent($indent, ($nestLevel + 1) * 4) .
+        buildSwaggerDescriptionField($environment, $variable, false) .
+        "\n";
+
+    return $tag . tagIndent($indent, $nestLevel * 4) . ')';
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\Configuration\Environment $environment
  * @param string $swaggerName
  * @param string $description
  * @param \MyENA\CloudStackClientGenerator\API\VariableContainer $variables
@@ -51,14 +184,21 @@ function escapeSwaggerString(string $in): string
  * @return string
  */
 function buildSwaggerDefinitionTag(
+    Environment $environment,
     string $swaggerName,
     string $description,
     VariableContainer $variables,
-    int $indent = 4,
-    bool $newline = false
+    int $indent,
+    bool $newline
 ): string {
-    $tag = tagIndent($indent) . "@OA\\Schema(\n";
-    $tag .= tagIndent($indent, 4) . "schema=\"{$swaggerName}\",\n";
+    $description = escapeSwaggerString($description);
+    if (2 === $environment->getSwagger()->getVersion()) {
+        $tag = tagIndent($indent) . "@SWG\\Definition(\n";
+        $tag .= tagIndent($indent, 4) . "definition=\"{$swaggerName}\",\n";
+    } else {
+        $tag = tagIndent($indent) . "@OA\\Schema(\n";
+        $tag .= tagIndent($indent, 4) . "schema=\"{$swaggerName}\",\n";
+    }
     $tag .= tagIndent($indent, 4) . "type=\"object\",\n";
     $tag .= tagIndent($indent, 4) . "description=\"{$description}\",\n";
 
@@ -71,7 +211,7 @@ function buildSwaggerDefinitionTag(
     }
 
     foreach ($variables as $variable) {
-        $tag .= $variable->getSwaggerPropertyTag(false, $indent) . ",\n";
+        $tag .= buildSwaggerPropertyTag($environment, $variable, false, $indent, 1) . ",\n";
     }
 
     return rtrim($tag, "\n,") . "\n" . tagIndent($indent) . ')' . ($newline ? "\n" : '');

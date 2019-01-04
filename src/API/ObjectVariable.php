@@ -3,8 +3,6 @@
 namespace MyENA\CloudStackClientGenerator\API;
 
 use MyENA\CloudStackClientGenerator\Configuration\OverloadedClass;
-use function MyENA\CloudStackClientGenerator\buildSwaggerDefinitionTag;
-use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
 
 /**
  * Class ObjectVariable
@@ -12,7 +10,6 @@ use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
  */
 class ObjectVariable extends Variable
 {
-
     /** @var string */
     private $namespace;
     /** @var VariableContainer */
@@ -110,36 +107,5 @@ class ObjectVariable extends Variable
     public function getSwaggerName(): string
     {
         return "CloudStack{$this->getClassName()}";
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getSwaggerItemsTag(): string
-    {
-        return "@OA\\Items(ref=\"{$this->getSwaggerRefValue()}\")";
-    }
-
-    /**
-     * @return string
-     */
-    public function getSwaggerRefValue(): string
-    {
-        return "#/components/schemas/{$this->getSwaggerName()}";
-    }
-
-    /**
-     * @param int $indent
-     * @param bool $newline
-     * @return string
-     */
-    public function getSwaggerDefinitionTag(int $indent = 4, bool $newline = false): string
-    {
-        return buildSwaggerDefinitionTag(
-            $this->getSwaggerName(),
-            escapeSwaggerString($this->getDescription()),
-            $this->getProperties(),
-            $indent,
-            $newline);
     }
 }

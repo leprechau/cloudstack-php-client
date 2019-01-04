@@ -19,6 +19,19 @@ use {{ namespace_path('CloudStackRequestException') }};
 {{ file_header(capabilities) }}
 
 /**
+{% if env.swagger.version == 2 %}
+ * @SWG\Definition(
+ *     definition="CloudStackAccessVmConsoleProxyResponse",
+ *     type="object",
+ *     description="Request url to access system console for a given VM",
+ *     required={"vm"},
+ *     @SWG\Property(
+ *          property="vm",
+ *          type="string",
+ *          description="ID of Virtual Machine you wish to access the console for"
+ *     )
+ * )
+{% else %}
  * @OA\Schema(
  *     schema="CloudStackAccessVmConsoleProxyRequest",
  *     type="object",
@@ -30,6 +43,7 @@ use {{ namespace_path('CloudStackRequestException') }};
  *          description="ID of Virtual Machine you wish to access the console for"
  *     )
  * )
+{% endif %}
  */
 
 /**

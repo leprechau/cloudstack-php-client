@@ -19,6 +19,23 @@ use {{ namespace_path('CloudStackRequest') }};
 {{ file_header(capabilities) }}
 
 /**
+{% if env.swagger.version == 2 %}
+ * @SWG\Definition(
+ *     definition="CloudStackAsyncJobStartResponse",
+ *     type="object",
+ *     description="Data about the asynchronous job that was started by the request",
+ *     @SWG\Property(
+ *          property="id",
+ *          type="string",
+ *          description="CloudStack internal Async Job ID. Not generally useful."
+ *     ),
+ *     @SWG\Property(
+ *          property="jobid",
+ *          type="string",
+ *          description="CloudStack public Async Job ID. Actually useful."
+ *     )
+ * )
+{% else %}
  * @OA\Schema(
  *     schema="CloudStackAsyncJobStartResponse",
  *     type="object",
@@ -34,6 +51,7 @@ use {{ namespace_path('CloudStackRequest') }};
  *          description="CloudStack public Async Job ID. Actually useful."
  *     )
  * )
+{% endif %}
  */
 
 /**

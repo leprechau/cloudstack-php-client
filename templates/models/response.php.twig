@@ -19,7 +19,7 @@
 {{ file_header(capabilities, obj) }}
 
 /**
-{{ swagger_definition_tag(obj.swaggername, escape_swagger_string(obj.description), obj.properties, 0) }}
+{{ swagger_definition_tag(env, obj.swaggername, obj.description, obj.properties, 0, false) }}
  */
 
 /**

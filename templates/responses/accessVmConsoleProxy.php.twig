@@ -17,6 +17,22 @@
 {{ file_header(capabilities) }}
 
 /**
+{% if env.swagger.version == 2 %}
+ * @SWG\Definition(
+ *     definition="CloudStackAccessVmConsoleProxyResponse",
+ *     type="object",
+ *     @SWG\Property(
+ *          property="vmid",
+ *          type="string",
+ *          description="ID of Virtual Machine"
+ *     ),
+ *     @SWG\Property(
+ *          property="iframe",
+ *          type="string",
+ *          description="HTML <iframe> element that can be used to view the console of the requested VM"
+ *     )
+ * )
+{% else %}
  * @OA\Schema(
  *     schema="CloudStackAccessVmConsoleProxyResponse",
  *     type="object",
@@ -31,6 +47,7 @@
  *          description="HTML <iframe> element that can be used to view the console of the requested VM"
  *     )
  * )
+{% endif %}
  */
 
 /**
