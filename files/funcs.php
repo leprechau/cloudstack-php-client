@@ -71,7 +71,7 @@ function buildSwaggerItemsTag(Environment $environment, Variable $variable): str
             "@SWG\\Items(type=\"string\")";
     } else {
         return ($variable instanceof ObjectVariable) ?
-            '@OA\\Items(ref=' . buildSwaggerRefValue($environment, $variable) . ')' :
+            '@OA\\Items(ref="' . buildSwaggerRefValue($environment, $variable) . '"")' :
             "@OA\\Items(type=\"string\")";
     }
 }
