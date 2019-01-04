@@ -106,7 +106,7 @@ class AccessVmConsoleProxyRequest implements CloudStackRequestInterface, CloudSt
     }
 
     /**
-     * @throws {{ namespace_path('CloudStackRequestException') }}
+     * @throws {{ namespace_path('CloudStackRequestException', true) }}
      */
     public function validateRequest(): void
     {

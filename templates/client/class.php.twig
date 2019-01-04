@@ -121,47 +121,49 @@ class CloudStackClient
     public function waitForAsync(CloudStackResponse\AsyncJobStartResponse $startResponse, int $sleep = 2, int $tries = 120): ?CloudStackResponse\QueryAsyncJobResultResponse
     {
         // Some basic validation
-        if (!is_int($sleep) || 0 >= $sleep) {
+        if (0 >= $sleep) {
             throw new \InvalidArgumentException(sprintf(
                 '%s::waitForAsyncResponse - $sleep must be positive integer, %s seen.',
                 get_class($this),
-                is_int($sleep) ? $sleep : gettype($sleep)
+                $sleep
             ));
         }
-
-        if (!is_int($tries) || (-1 > $tries || 0 === $tries)) {
+        if ((-1 > $tries || 0 === $tries)) {
             throw new \InvalidArgumentException(sprintf(
                 '%s:waitForAsyncResponse - $tries must be positive integer or -1 for infinite, %s seen.',
                 get_class($this),
-                is_int($tries) ? $tries : gettype($tries)
+                $tries
             ));
         }
 
-        $attempts = 0;
-        while(true) {
+        // if they want "unlimited" tries, set value to the biggest possible integer
+        if (-1 === $tries) {
+            $tries = PHP_INT_MAX;
+        }
+
+        // loop until either a response is seen or the try limit is reached
+        for ($i = 0; $i < $tries; $i++) {
             $result = $this->queryAsyncJobResult($startResponse->jobid);
 
             if (0 === $result->jobstatus) {
-                if (-1 !== $tries && $attempts > $tries) {
-                    return null;
-                }
                 sleep($sleep);
-            } else {
-                // if this is a non-error response, try to unmarshal
-                if (2 !== $result->jobstatus && 2 !== $result->jobprocstatus && isset($result->jobresult) && is_array($result->jobresult) && 0 < count($result->jobresult)) {
-                    $class = $startResponse->getResponseClassName();
-
-                    // check for simple async responses (i.e.: ["success" => true])
-                    $first = reset($result->jobresult);
-
-                    if (is_array($first)) {
-                        $result->jobresult = new $class($first);
-                    } else {
-                        $result->jobresult = new $class($result->jobresult);
-                    }
-                }
-                return $result;
+                continue;
             }
+            // if this is a non-error response, try to unmarshal
+            if (2 !== $result->jobstatus && 2 !== $result->jobprocstatus && isset($result->jobresult) && is_array($result->jobresult) && 0 < count($result->jobresult)) {
+                $class = $startResponse->getResponseClassName();
+
+                // check for simple async responses (i.e.: ["success" => true])
+                $first = reset($result->jobresult);
+
+                // set the unmarshalled type to the "jobresult" field
+                if (is_array($first)) {
+                    $result->jobresult = new $class($first);
+                } else {
+                    $result->jobresult = new $class($result->jobresult);
+                }
+            }
+            return $result;
         }
 
         return null;
