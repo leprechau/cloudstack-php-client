@@ -36,6 +36,12 @@ use {{ namespace_path('CloudStackEventTypes') }};{% endif %}{% if hasMapParamete
 use {{ namespace_path('CloudStackHelpers') }};{% endif %}
 
 {% endif %}
+{% if api.isCacheable %}
+use const {{ namespace_path('RESPONSE_CACHE_DISABLE') }};
+use const {{ namespace_path('RESPONSE_CACHE_FETCH') }};
+use const {{ namespace_path('RESPONSE_CACHE_PERSIST') }};
+use const {{ namespace_path('RESPONSE_CACHE_ENABLE') }};{% endif %}
+
 
 /**
 {{ swagger_definition_tag(env, api.swaggername, api.description, api.parameters, 0, false) }}
@@ -53,6 +59,10 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% endif %}
     const COMMAND_NAME = '{{ api.name }}';
 {% if requiredParamLength > 0 or optionalParamLength > 0 %}
+
+{% for prop in api.parameters %}
+    const {{ prop.getFieldConstantName }} = '{{ prop.name }}';
+{% endfor %}
 {% for prop in api.parameters %}
 
 {{ prop.propertyDocBloc }}
@@ -60,16 +70,10 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% endfor %}{% endif %}{% if api.isCacheable %}
 
     /**
-     * If true, allows the response to be pulled from cache rather than being executed against ACS
+     * The cache mode to use with this request
      * @var bool
      */
-    private $cachedResponseAllowed = {{ env.cache.commandEnabled(api.name) ? 'true' : 'false' }};
-
-    /**
-     * If true, allows the response from this request to be put in the cache
-     * @var bool
-     */
-    private $responseCachingEnabled = {{ env.cache.commandEnabled(api.name) ? 'true' : 'false' }};
+    private $cacheMode = {{ env.cache.cacheModeConstantName(api.name) }};
 
     /**
      * The duration this request's response is cached, if caching is allowed for this request
@@ -163,62 +167,75 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% for param in api.parameters %}
 {% if 'map' == param.type %}
         if (isset($this->{{ param.name }}) && is_array($this->{{ param.name }}) && count($this->{{ param.name }}) > 0) {
-            foreach(CloudStackHelpers::formatCSQueryArray($this->{{ param.name }}, '{{ param.name }}') as $k => $v) {
+            foreach(CloudStackHelpers::formatCSQueryArray($this->{{ param.name }}, self::{{ param.getFieldConstantName }}) as $k => $v) {
                 $a[$k] = $v;
             }
         }
 {% elseif 'array' == param.phpType %}
         if (isset($this->{{ param.name }})) {
-            $a['{{ param.name }}'] = implode(',', $this->{{ param.name }});
+            $a[self::{{ param.getFieldConstantName }}] = implode(',', $this->{{ param.name }});
         }
 {% elseif 'boolean' == param.phpType %}
         if (isset($this->{{ param.name }})) {
-            $a['{{ param.name }}'] = $this->{{ param.name }} ? 'true' : 'false';
+            $a[self::{{ param.getFieldConstantName }}] = $this->{{ param.name }} ? 'true' : 'false';
         }
 {% else %}
         if (isset($this->{{ param.name }})) {
-            $a['{{ param.name }}'] = (string)$this->{{ param.name }};
+            $a[self::{{ param.getFieldConstantName }}] = (string)$this->{{ param.name }};
         }
 {% endif %}
 {% endfor %}
         return $a;
     }{% if api.isCacheable %}
 
-
     /**
+     * @deprecated
+     * @see setResponseCacheMode()
+     *
      * Specify whether this request is allowed to use the response cache
      * @param bool $allow
      */
     public function setAllowCachedResponse(bool $allow): void
     {
-        $this->cachedResponseAllowed = $allow;
+        if ($allow) {
+            $this->cacheMode |= RESPONSE_CACHE_FETCH;
+        } else {
+            $this->cacheMode &= ~RESPONSE_CACHE_FETCH;
+        }
     }
 
     /**
-     * If true, the client will attempt to pull the response for this request from cache
-     * @return bool
-     */
-    public function getCachedResponseAllowed(): bool
-    {
-        return $this->cachedResponseAllowed;
-    }
-
-    /**
+     * @deprecated
+     * @see setResponseCacheMode()
+     *
      * Specifies that the response from this request may not be put into the cache
      * @param bool $enable
      */
     public function setEnableResponseCaching(bool $enable): void
     {
-        $this->responseCachingEnabled = $enable;
+        if ($enable) {
+            $this->cacheMode |= RESPONSE_CACHE_PERSIST;
+        } else {
+            $this->cacheMode &= ~RESPONSE_CACHE_PERSIST;
+        }
     }
 
     /**
-     * If true, the response from this request may not be cached.
-     * @return bool
+     * Set the cache mode for this request
+     * @param int $cacheMode
      */
-    public function getResponseCachingEnabled(): bool
+    public function setResponseCacheMode(int $cacheMode): void
     {
-        return $this->responseCachingEnabled;
+        $this->cacheMode = $cacheMode & RESPONSE_CACHE_ENABLE;
+    }
+
+    /**
+     * Return the cache mode to use for this request
+     * @return int
+     */
+    public function getResponseCacheMode(): int
+    {
+        return $this->cacheMode;
     }
 
     /**
@@ -248,7 +265,7 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
         $a = [];
 {% for param in api.parameters %}
         if (isset($this->{{ param.name }}){% if param.isCollection %} && is_array($this->{{ param.name }}) && count($this->{{ param.name }}) > 0{% endif %}) {
-            $a['{{ param.name }}'] = $this->{{ param.name }};
+            $a[self::{{ param.getFieldConstantName }}] = $this->{{ param.name }};
         }
 {% endfor %}
         return $a;

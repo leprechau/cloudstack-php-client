@@ -106,6 +106,18 @@ class Cache implements \JsonSerializable
     }
 
     /**
+     * @param string $commandName
+     * @return string
+     */
+    public function getCacheModeConstantName(string $commandName): string
+    {
+        if (($command = $this->getCommand($commandName)) && $command->isEnabled()) {
+            return 'RESPONSE_CACHE_ENABLE';
+        }
+        return 'RESPONSE_CACHE_DISABLE';
+    }
+
+    /**
      * @param string $command
      * @return int
      */

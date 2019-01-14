@@ -1,0 +1,32 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+{{ file_header(capabilities) }}
+
+// response caching modes
+
+// using this will disable caching entirely for this request
+const RESPONSE_CACHE_DISABLE = {{ constant('\\MyENA\\CloudStackClientGenerator\\RESPONSE_CACHE_DISABLE') }};
+
+// this will allow a previously cached response to be returned for this request
+const RESPONSE_CACHE_FETCH = {{ constant('\\MyENA\\CloudStackClientGenerator\\RESPONSE_CACHE_FETCH') }};
+
+// this will allow the response from this request to be persisted to cache
+const RESPONSE_CACHE_PERSIST = {{ constant('\\MyENA\\CloudStackClientGenerator\\RESPONSE_CACHE_PERSIST') }};
+
+// this will allow both an existing cached response to be used and, failing that, a new one be created based on the
+// output of this request
+const RESPONSE_CACHE_ENABLE = {{ constant('\\MyENA\\CloudStackClientGenerator\\RESPONSE_CACHE_ENABLE') }};

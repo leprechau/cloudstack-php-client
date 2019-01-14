@@ -23,13 +23,11 @@ file that was distributed with this source code.
  */
 final class CloudStackGenerationMeta implements \JsonSerializable
 {
-    /** @var string */
+    const ID = {{ generation_id() }};
+
     private const GENERATION_DATE = '{{ "now"|date(constant('DATE_RFC3339')) }}';
-    /** @var string */
     private const ENVIRONMENT_NAME = '{{ env.name }}';
-    /** @var string */
     private const GENERATION_SOURCE = '{{ env.sourceProvider.description }}';
-    /** @var array */
     private const CACHE_CONFIG = {{ var_export(json_decode(env.cache|json_encode, true), true) }};
 
     /** @var array */

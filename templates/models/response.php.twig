@@ -30,6 +30,10 @@ class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageabl
 
 {
 {% for prop in obj.properties %}
+    const {{ prop.getFieldConstantName }} = '{{ prop.name }}';
+{% endfor %}
+
+{% for prop in obj.properties %}
 {{ prop.propertyDocBloc }}
     public ${{ prop.name }};
 
@@ -84,4 +88,18 @@ class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageabl
         return $this->requestPageSize;
     }
 {% endif %}
+
+    /**
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        $a = [];
+{% for prop in obj.properties %}
+        if (isset($this->{{ prop.name }})) {
+            $a[self::{{ prop.getFieldConstantName }}] = $this->{{ prop.name }};
+        }
+{% endfor %}
+        return $a;
+    }
 }

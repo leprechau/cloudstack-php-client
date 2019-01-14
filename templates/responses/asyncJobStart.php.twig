@@ -58,8 +58,11 @@ use {{ namespace_path('CloudStackRequest') }};
  * Class AsyncJobStartResponse
  * @package {{ namespace_path('CloudStackResponse', true) }}
  */
-class AsyncJobStartResponse
+class AsyncJobStartResponse implements CloudStackResponseInterface
 {
+    const FIELD_ID = 'id';
+    const FIELD_JOBID = 'jobid';
+
     /**
      * Internal CloudStack Async Job ID.  Not generally useful.
      * @var string
@@ -86,11 +89,11 @@ class AsyncJobStartResponse
      */
     public function __construct(array $data, CloudStackRequest\CloudStackRequestInterface $request)
     {
-        if (isset($data['id']) && is_string($data['id'])) {
-            $this->id = trim($data['id']);
+        if (isset($data[self::FIELD_ID]) && is_string($data[self::FIELD_ID])) {
+            $this->id = trim($data[self::FIELD_ID]);
         }
-        if (isset($data['jobid']) && is_string($data['jobid'])) {
-            $this->jobid = trim($data['jobid']);
+        if (isset($data[self::FIELD_JOBID]) && is_string($data[self::FIELD_JOBID])) {
+            $this->jobid = trim($data[self::FIELD_JOBID]);
         }
 
         $this->request = clone $request;
@@ -111,5 +114,20 @@ class AsyncJobStartResponse
     public function getResponseClassName(): string
     {
         return $this->request->getCloudStackResponseModel();
+    }
+
+    /**
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        $a = [];
+        if (isset($this->id)) {
+            $a[self::FIELD_ID] = $this->id;
+        }
+        if (isset($this->jobid)) {
+            $a[self::FIELD_JOBID] = $this->jobid;
+        }
+        return $a;
     }
 }

@@ -52,6 +52,8 @@ use {{ namespace_path('CloudStackRequestException') }};
  */
 class AccessVmConsoleProxyRequest implements CloudStackRequestInterface, CloudStackConsoleCommandRequest
 {
+    const FIELD_VM = 'vm';
+
     /**
      * Virtual Machine ID
      * @var string
@@ -136,7 +138,7 @@ class AccessVmConsoleProxyRequest implements CloudStackRequestInterface, CloudSt
     {
         $a = [];
         if (isset($this->vm)) {
-            $a['vm'] = $this->vm;
+            $a[self::FIELD_VM] = $this->vm;
         }
         return $a;
     }
@@ -148,7 +150,7 @@ class AccessVmConsoleProxyRequest implements CloudStackRequestInterface, CloudSt
     {
         $a = [];
         if (isset($this->vm)) {
-            $a['vm'] = $this->getVm();
+            $a[self::FIELD_VM] = $this->getVm();
         }
         return $a;
     }

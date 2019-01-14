@@ -82,12 +82,18 @@ function buildSwaggerItemsTag(Environment $environment, Variable $variable): str
  * @param bool $trailingComma
  * @return string
  */
-function buildSwaggerDescriptionField(Environment $environment, Variable $variable, bool $trailingComma = false): string
-{
+function buildSwaggerDescriptionField(
+    Environment $environment,
+    Variable $variable,
+    bool $trailingComma = false
+): string {
     if ('' === $variable->getDescription()) {
         return '';
     }
-    return 'description="' . ucfirst(escapeSwaggerString($variable->getDescription())) . '"' . ($trailingComma ? ',' : '');
+    return 'description="' .
+        ucfirst(escapeSwaggerString($variable->getDescription())) .
+        '"' .
+        ($trailingComma ? ',' : '');
 }
 
 /**
@@ -524,7 +530,7 @@ STRING;
                 }
 
                 $c .= <<<STRING
-('{$name}' === \$k && '' !== (\$v = trim((string)\$v))) {
+({$property->getFieldConstantName(true)} === \$k && '' !== (\$v = trim((string)\$v))) {
                 \$this->{$name} = Types\\DateType::fromApiDate(\$v);
             }
 STRING;
@@ -540,7 +546,7 @@ STRING;
                 }
 
                 if ($property->isCollection()) {
-                    $c .= "('{$name}' === \$k && is_array(\$v)) {\n";
+                    $c .= "({$property->getFieldConstantName(true)} === \$k && is_array(\$v)) {\n";
                     $c .= "                foreach(\$v as \$value) {\n";
                     $c .= "                    \$this->{$name}[] = new " . determineClass($property) . "(\$value);\n";
                     $c .= <<<STRING
@@ -549,7 +555,7 @@ STRING;
 STRING;
 
                 } else {
-                    $c .= "('{$name}' === \$k && null !== \$v) {\n";
+                    $c .= "({$property->getFieldConstantName(true)} === \$k && null !== \$v) {\n";
                     $c .= "                \$this->{$name} = new " . determineClass($property) . "(\$value);\n";
                     $c .= <<<STRING
             }

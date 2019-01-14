@@ -46,6 +46,9 @@ class Composer
         'doctrine/cache'    => '~1.7',
     ];
     const DEFAULT_AUTOLOAD             = [
+        'files' => [
+            'src/constants.php',
+        ],
         'psr-4' => [
 
         ],
