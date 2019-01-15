@@ -49,6 +49,9 @@ class Generator
     /** @var array */
     protected $commandEventMap;
 
+    /** @var int */
+    private $generationID;
+
     /**
      * Generator constructor.
      * @param \Psr\Log\LoggerInterface $logger
@@ -67,6 +70,15 @@ class Generator
 
         $this->log->debug('Loading command map from ' . self::COMMAND_MAP_FILE);
         $this->commandEventMap = require self::COMMAND_MAP_FILE;
+
+        $source = $environment->getSourceProvider();
+        $this->generationID = crc32(sprintf(
+            '%d%s%s%s',
+            time(),
+            $source->getName(),
+            json_encode($source->getApis()),
+            json_encode($source->getCapabilities())
+        ));
 
         $this->log->debug('Loading Twig with template dir ' . self::TEMPLATE_DIR);
         $twigLoader = new \Twig_Loader_Filesystem(self::TEMPLATE_DIR, true);
@@ -90,6 +102,14 @@ class Generator
         $this->responseDir = sprintf('%s/CloudStackResponse', $this->srcDir);
         $this->responseTypesDir = sprintf('%s/Types', $this->responseDir);
         $this->requestDir = sprintf('%s/CloudStackRequest', $this->srcDir);
+    }
+
+    /**
+     * @return int
+     */
+    public function getGenerationID(): int
+    {
+        return $this->generationID;
     }
 
     /**
@@ -178,7 +198,9 @@ class Generator
     protected function cleanDirectory(string $dir): void
     {
         if (0 < ($cnt = count(($phpFiles = glob($dir . '/*.php'))))) {
-            $this->log->info(sprintf('Directory "%s" has "%d" php file%s, emptying...', $dir, $cnt,
+            $this->log->info(sprintf('Directory "%s" has "%d" php file%s, emptying...',
+                $dir,
+                $cnt,
                 (1 === $cnt ? '' : 's')));
             foreach ($phpFiles as $phpFile) {
                 if (!@unlink($phpFile)) {
@@ -388,7 +410,7 @@ class Generator
         string $sourcePrefix,
         array $additionalTwigArgs = []
     ): void {
-        foreach (new \DirectoryIterator(self::TEMPLATE_DIR.'/'.$sourcePrefix) as $template) {
+        foreach (new \DirectoryIterator(self::TEMPLATE_DIR . '/' . $sourcePrefix) as $template) {
             if ($template->isFile() && !$template->isDot() && 'twig' === $template->getExtension()) {
                 $classFile = $template->getBasename('.twig');
                 $this->writeFile(
@@ -419,6 +441,16 @@ class Generator
                 $this->twig->load('composer.json.twig')->render([])
             );
         }
+
+        $this->writeFile(
+            $this->srcDir.'/constants.php',
+            $this->twig->load('constants.php.twig')->render([])
+        );
+
+        $this->writeFile(
+            $this->srcDir.'/CloudStackCachedResponse.php',
+            $this->twig->load('cachedResponse.php.twig')->render([])
+        );
 
         $this->writeFile(
             $this->srcDir . '/CloudStackClientConfiguration.php',
@@ -464,6 +496,7 @@ class Generator
         // exception classes
         $this->writeFromDirectory($this->srcDir, 'exceptions');
 
+        // generation metadata file
         $this->writeFile(
             $this->srcDir . '/CloudStackGenerationMeta.php',
             $this->twig->load('meta.php.twig')->render([])
@@ -696,6 +729,14 @@ class Generator
         $this->twig->addFunction(new \Twig_Function(
             'object_constructor',
             '\\MyENA\\CloudStackClientGenerator\\objectConstructor',
+            ['is_safe' => ['html']]
+        ));
+        $generationID = $this->getGenerationID();
+        $this->twig->addFunction(new \Twig_Function(
+            'generation_id',
+            function () use ($generationID): int {
+                return $generationID;
+            },
             ['is_safe' => ['html']]
         ));
     }

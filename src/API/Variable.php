@@ -4,9 +4,6 @@ namespace MyENA\CloudStackClientGenerator\API;
 
 use function MyENA\CloudStackClientGenerator\buildRequiredTagLine;
 use function MyENA\CloudStackClientGenerator\buildSinceTagLine;
-use function MyENA\CloudStackClientGenerator\determineSwaggerName;
-use function MyENA\CloudStackClientGenerator\escapeSwaggerString;
-use function MyENA\CloudStackClientGenerator\tagIndent;
 
 /**
  * Class Variable
@@ -52,6 +49,15 @@ class Variable
     public function getName(): string
     {
         return $this->name;
+    }
+
+    /**
+     * @param bool $includeSelf
+     * @return string
+     */
+    public function getFieldConstantName(bool $includeSelf = false): string
+    {
+        return ($includeSelf ? 'self::' : '') . 'FIELD_' . strtoupper($this->getName());
     }
 
     /**

@@ -1,0 +1,85 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+<?php
+
+{{ namespace_stmt() }}
+
+{{ file_header(capabilities) }}
+
+final class CloudStackCachedResponse implements \JsonSerializable
+{
+    /** @var int */
+    private $generationID = CloudStackGenerationMeta::ID;
+    /** @var {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }} */
+    private $response;
+    /** @var string */
+    private $responseClassname;
+
+    /**
+     * CloudStackCachedResponse constructor
+     * @param {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[] $response The cached response itself
+     */
+    public function __construct($response)
+    {
+        $this->response = $response;
+        if (is_array($response)) {
+            if ($response[0] instanceof CloudStackResponse\CloudStackResponseInterface) {
+                $this->responseClassname = get_class($response[0]);
+            } else {
+                throw new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of CloudStackResponseInterface objects, %s seen', gettype($response)));
+            }
+        } else if ($response instanceof CloudStackResponse\CloudStackResponseInterface) {
+            $this->responseClassname = get_class($response);
+        } else {
+            throw new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of CloudStackResponseInterface objects, %s seen', gettype($response)));
+        }
+    }
+
+    /**
+     * Must return the ID of the generated client used to create this cache
+     * @return int
+     */
+    public function getGenerationID(): int
+    {
+        return $this->generationID;
+    }
+
+    /**
+     * Must return the cached response
+     * @return {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[]
+     */
+    public function getResponse()
+    {
+        return $this->response;
+    }
+
+    /**
+     * @return string
+     */
+    public function getResponseClassname(): string
+    {
+        return $this->responseClassname;
+    }
+
+    /**
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        return [
+            'generationID'  => $this->getGenerationID(),
+            'response'      => $this->getResponse(),
+            'responseClass' => $this->getResponseClassname(),
+        ];
+    }
+}

@@ -14,8 +14,7 @@ use function MyENA\CloudStackClientGenerator\cleanKey;
  * Class Remote
  * @package MyENA\CloudStackClientGenerator\Configuration\Environment\Source
  */
-class Remote implements SourceProviderInterface
-{
+class Remote implements SourceProviderInterface {
     private const NAME = 'remote';
 
     const DEFAULT_SCHEME = 'http';
@@ -52,8 +51,7 @@ class Remote implements SourceProviderInterface
      * @param string $apiPath
      * @param array $conf
      */
-    public function __construct(string $apiPath, array $conf = [])
-    {
+    public function __construct(string $apiPath, array $conf = []) {
         $this->apiPath = $apiPath;
         $clientClass = GuzzleClient::class;
         $clientConfig = [];
@@ -71,24 +69,21 @@ class Remote implements SourceProviderInterface
     /**
      * @return string
      */
-    public function getName(): string
-    {
+    public function getName(): string {
         return self::NAME;
     }
 
     /**
      * @return string
      */
-    public function getDescription(): string
-    {
+    public function getDescription(): string {
         return $this->getHost();
     }
 
     /**
      * @return string
      */
-    public function getKey(): string
-    {
+    public function getKey(): string {
         return $this->key;
     }
 
@@ -96,16 +91,14 @@ class Remote implements SourceProviderInterface
      * @param string $key
      * @return void
      */
-    public function setKey(string $key)
-    {
+    public function setKey(string $key) {
         $this->key = $key;
     }
 
     /**
      * @return string
      */
-    public function getSecret(): string
-    {
+    public function getSecret(): string {
         return $this->secret;
     }
 
@@ -113,16 +106,14 @@ class Remote implements SourceProviderInterface
      * @param string $secret
      * @return void
      */
-    public function setSecret(string $secret)
-    {
+    public function setSecret(string $secret) {
         $this->secret = $secret;
     }
 
     /**
      * @return string
      */
-    public function getScheme(): string
-    {
+    public function getScheme(): string {
         return $this->scheme;
     }
 
@@ -130,8 +121,7 @@ class Remote implements SourceProviderInterface
      * @param string $scheme
      * @return void
      */
-    public function setScheme(string $scheme)
-    {
+    public function setScheme(string $scheme) {
         $this->scheme = $scheme;
         $this->compiledAddress = '';
     }
@@ -139,8 +129,7 @@ class Remote implements SourceProviderInterface
     /**
      * @return string
      */
-    public function getHost(): string
-    {
+    public function getHost(): string {
         return $this->host;
     }
 
@@ -148,8 +137,7 @@ class Remote implements SourceProviderInterface
      * @param string $host
      * @return void
      */
-    public function setHost(string $host)
-    {
+    public function setHost(string $host) {
         $this->host = $host;
         $this->compiledAddress = '';
     }
@@ -157,8 +145,7 @@ class Remote implements SourceProviderInterface
     /**
      * @return int
      */
-    public function getPort(): int
-    {
+    public function getPort(): int {
         return $this->port;
     }
 
@@ -166,8 +153,7 @@ class Remote implements SourceProviderInterface
      * @param int $port
      * @return void
      */
-    public function setPort(int $port)
-    {
+    public function setPort(int $port) {
         $this->port = $port;
         $this->compiledAddress = '';
     }
@@ -175,24 +161,21 @@ class Remote implements SourceProviderInterface
     /**
      * @return string
      */
-    public function getApiPath(): string
-    {
+    public function getApiPath(): string {
         return $this->apiPath;
     }
 
     /**
      * @return \GuzzleHttp\ClientInterface
      */
-    public function getHttpClient(): ClientInterface
-    {
+    public function getHttpClient(): ClientInterface {
         return $this->httpClient;
     }
 
     /**
      * @param \GuzzleHttp\ClientInterface $httpClient
      */
-    public function setHttpClient(ClientInterface $httpClient)
-    {
+    public function setHttpClient(ClientInterface $httpClient) {
         $this->httpClient = $httpClient;
     }
 
@@ -201,10 +184,9 @@ class Remote implements SourceProviderInterface
      * @return string
      * @throws \Exception
      */
-    public function buildSignature(string $query): string
-    {
+    public function buildSignature(string $query): string {
         if ('' === $query) {
-            throw new \Exception(STRTOSIGN_EMPTY_MSG, STRTOSIGN_EMPTY);
+            throw new \RuntimeException('Empty query seen when trying to execute listApis');
         }
 
         $hash = hash_hmac('SHA1', strtolower($query), $this->getSecret(), true);
@@ -214,8 +196,7 @@ class Remote implements SourceProviderInterface
     /**
      * @return string
      */
-    public function getCompiledAddress(): string
-    {
+    public function getCompiledAddress(): string {
         if ('' === $this->compiledAddress) {
             $this->compiledAddress = rtrim(sprintf(
                 '%s://%s%s/',
@@ -233,8 +214,7 @@ class Remote implements SourceProviderInterface
      * @return array
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function getApis(): array
-    {
+    public function getApis(): array {
         if (!isset($this->apis)) {
             $data = $this->do('listApis');
             $this->apis = $data->listapisresponse->api;
@@ -246,8 +226,7 @@ class Remote implements SourceProviderInterface
      * @return \stdClass
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function getCapabilities(): \stdClass
-    {
+    public function getCapabilities(): \stdClass {
         if (!isset($this->capabilities)) {
             $data = $this->do('listCapabilities');
             $this->capabilities = $data->listcapabilitiesresponse->capability;
@@ -263,8 +242,7 @@ class Remote implements SourceProviderInterface
      * @throws \Exception
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function do(string $command, array $parameters = [], array $headers = []): \stdClass
-    {
+    protected function do(string $command, array $parameters = [], array $headers = []): \stdClass {
         static $defaultHeaders = [
             'Accept'       => ['application/json'],
             'Content-Type' => ['application/x-www-form-urlencoded'],
@@ -286,10 +264,11 @@ class Remote implements SourceProviderInterface
 
         $r = new Request('GET', $uri, $headers + $defaultHeaders);
 
-        $resp = $this->getHttpClient()->send($r, [
-            RequestOptions::HTTP_ERRORS    => false,
-            RequestOptions::DECODE_CONTENT => false,
-        ]);
+        $resp = $this->getHttpClient()->send($r,
+            [
+                RequestOptions::HTTP_ERRORS    => false,
+                RequestOptions::DECODE_CONTENT => false,
+            ]);
 
         if (200 !== $resp->getStatusCode()) {
             // attempt to decode response...
@@ -303,20 +282,21 @@ class Remote implements SourceProviderInterface
                     throw new \RuntimeException($decoded);
                 }
             }
-            throw new \RuntimeException(sprintf('Received non-200 response: %d %s.  Body: %s', $resp->getStatusCode(),
-                $resp->getReasonPhrase(), $data), NO_VALID_JSON_RECEIVED);
+            throw new \RuntimeException(sprintf('Received non-200 response: %d %s.  Body: %s',
+                $resp->getStatusCode(),
+                $resp->getReasonPhrase(),
+                $data));
         }
 
         $body = $resp->getBody();
 
         if (0 === $body->getSize()) {
-            throw new \RuntimeException(NO_DATA_RECEIVED_MSG, NO_DATA_RECEIVED);
+            throw new \RuntimeException('Empty response from CloudStack seen');
         }
 
         $decoded = @json_decode($body->getContents());
         if (JSON_ERROR_NONE !== json_last_error()) {
-            throw new \RuntimeException(sprintf('%s: %s', NO_VALID_JSON_RECEIVED_MSG, json_last_error_msg()),
-                NO_VALID_JSON_RECEIVED);
+            throw new \RuntimeException(sprintf('Invalid JSON returned from listApis: %s', json_last_error_msg()));
         }
 
         return $decoded;
@@ -329,8 +309,7 @@ class Remote implements SourceProviderInterface
      * @type array Client config
      * )
      */
-    protected function parseHttpClientEntry($v, string $clientClass): array
-    {
+    protected function parseHttpClientEntry($v, string $clientClass): array {
         $clientConfig = [];
         if (null === $v) {
             return [$clientClass, $clientConfig];

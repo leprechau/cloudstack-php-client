@@ -54,8 +54,12 @@
  * Class AccessVmConsoleProxyResponse
  * @package {{ namespace_path('CloudStackResponse', true) }}
  */
-class AccessVmConsoleProxyResponse
+class AccessVmConsoleProxyResponse implements CloudStackResponseInterface
 {
+    const FIELD_VMID = 'vmid;
+    const FIELD_IFRAME = 'iframe';
+    const FIELD_SRC = 'src;
+
     /**
      * Virtual Machine ID
      * @var string
@@ -87,5 +91,23 @@ class AccessVmConsoleProxyResponse
         }
 
         return isset($this->src) ? $this->src : '';
+    }
+
+    /**
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        $a = [];
+        if (isset($this->vmid)) {
+            $a[self::FIELD_VMID] = $this->vmid;
+        }
+        if (isset($this->iframe)) {
+            $a[self::FIELD_IFRAME] = $this->iframe;
+        }
+        if (isset($this->src)) {
+            $a[self::FIELD_SRC] = $this->src;
+        }
+        return $a;
     }
 }

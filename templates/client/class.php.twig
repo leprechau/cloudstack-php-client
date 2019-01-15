@@ -17,10 +17,10 @@
 {{ file_header(capabilities) }}
 
 use GuzzleHttp\Exception\TransferException;
-use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\Uri as GuzzlePsr7Uri;
 use GuzzleHttp\Psr7\Request as GuzzlePsr7Request;
 use GuzzleHttp\RequestOptions;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -29,11 +29,31 @@ use Psr\Http\Message\ResponseInterface;
  */
 class CloudStackClient
 {
-    // default options to apply to each request
+    // options applied to each request
     protected const GUZZLE_REQUEST_OPTS = [
-        RequestOptions::HTTP_ERRORS => false,
+        RequestOptions::HTTP_ERRORS    => false,
         RequestOptions::DECODE_CONTENT => false,
     ];
+
+    // headers applied to each request
+    protected const HTTP_REQUEST_HEADERS = [
+        'Accept'       => ['application/json'],
+        'Content-Type' => ['application/x-www-form-urlencoded'],
+    ];
+
+    // search & replace values to be used prior to sending request
+    protected const ENCODE_QUERY_REQUEST_SEARCH  = ['+'];
+    protected const ENCODE_QUERY_REQUEST_REPLACE = ['%20'];
+
+    // search & replace values to be used prior to creating signature
+    protected const ENCODE_QUERY_SIGNATURE_SEARCH  = ['+', '%5B', '%5D'];
+    protected const ENCODE_QUERY_SIGNATURE_REPLACE = ['%20', '[', ']'];
+
+    // these response prefixes need to be handled differently from the rest
+    protected const RESPONSE_PREFIX_LIST     = 'list';
+    protected const RESPONSE_PREFIX_CREATE   = 'create';
+    protected const RESPONSE_PREFIX_REGISTER = 'register';
+    protected const RESPONSE_PREFIX_UPDATE   = 'update';
 
     /** @var {{ namespace_path('CloudStackClientConfiguration', true) }} */
     protected $configuration;
@@ -44,15 +64,23 @@ class CloudStackClient
     /** @var \Doctrine\Common\Cache\Cache */
     protected $cacheProvider;
 
+    /** @var string */
+    private $_cacheKeyPrefix;
+
     /**
      * CloudStackClient constructor
-     *
      * @param {{ namespace_path('CloudStackClientConfiguration', true) }} $configuration
      */
-    public function __construct(CloudStackClientConfiguration $configuration) {
+    public function __construct(CloudStackClientConfiguration $configuration)
+    {
         $this->configuration = $configuration;
         $this->logger = $configuration->getLogger();
         $this->cacheProvider = $configuration->getCacheProvider();
+
+        // if a cache provider was passed, create and store the cache key prefix
+        if (isset($this->cacheProvider)) {
+            $this->_cacheKeyPrefix = "{$configuration->getHost()}{$configuration->getApiKey()}{$configuration->getSecretKey()}";
+        }
     }
 
     /**
@@ -102,7 +130,7 @@ class CloudStackClient
      */
     public function accessVmConsoleProxy($vmId)
     {
-        $response = $this->doRequest(new CloudStackRequest\AccessVmConsoleProxyRequest($vmId), false);
+        $response = $this->executeHTTPRequest(new CloudStackRequest\AccessVmConsoleProxyRequest($vmId));
         $model = new CloudStackResponse\AccessVmConsoleProxyResponse();
         $model->vmid = $vmId;
         $model->iframe = $response->getBody()->getContents();
@@ -172,69 +200,33 @@ class CloudStackClient
     /**
      * Execute Request against CloudStack
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }}
-     * @param bool $decode If true and response is OK, will attempt to decode response body into response model appropriate for request.  If false, raw PSR response is returned.
      * @return mixed
      */
-    public function doRequest(CloudStackRequest\CloudStackRequestInterface $request, bool $decode = true)
+    public function doRequest(CloudStackRequest\CloudStackRequestInterface $request)
     {
+        // ensure required fields are present
         $request->validateRequest();
-        $command = $request->getCloudStackCommandName();
-        $cacheable = ($decode && isset($this->cacheProvider) && $request instanceof CloudStackRequest\CloudStackCacheableRequest);
 
-        if ($cacheable) {
-            $cacheID = $this->getRequestCacheID($request);
-            if ($request->getCachedResponseAllowed()) {{ '{' }}
-{% if env.logging.isDebug %}
-                $this->logger->debug(sprintf('Found command %s cache with id %s', $command, $cacheID));{% endif %}
+        // determine this request's cache-ability
 
-                if ($this->cacheProvider->contains($cacheID)) {
-                    if (false !== ($cached = $this->cacheProvider->fetch($cacheID))) {
-                        return $cached;
-                    }
-                }
-            }
+        /** @var string $cacheID */
+        /** @var int $cacheMode */
+        [$cacheID, $cacheMode] = $this->_determineCacheable($request);
+
+        // if the cache mode allows for checking for and using an existing response cache
+        if (0 !== (RESPONSE_CACHE_FETCH & $cacheMode) && ($cached = $this->_tryFetchCachedResponse($cacheID, $request))) {
+            return $cached;
         }
 
-        try {
-            $resp = $this->configuration->getHttpClient()->send($this->createPsr7Request($request), self::GUZZLE_REQUEST_OPTS);
-        } catch (TransferException $e) {
-            throw new CloudStackTransportException($request, $e);
-        }
+        // execute request
+        $resp = $this->executeHTTPRequest($request);
 
-        // Check for 200..
+        // if anything other than a 200 is seen, handle as error
         if (200 !== $resp->getStatusCode()) {
-            // attempt to decode response...
-            $data = $resp->getBody()->getContents();
-            $decoded = @json_decode($data, true);
-            if (JSON_ERROR_NONE === json_last_error()) {
-                if (1 === count($decoded)) {
-                    $decoded = reset($decoded);
-                }
-                if (isset($decoded['errortext'])) {
-                    throw new CloudStackAPIException($request, $decoded);
-                }
-            }
-            throw new CloudStackResponseException(
-                $request,
-                sprintf(
-                    'Unable to decode non-200 response: %d %s: %s; Body: %s',
-                    $resp->getStatusCode(),
-                    $resp->getReasonPhrase(),
-                    json_last_error_msg(),
-                    $data
-                ),
-                json_last_error()
-            );
+            $this->handleNon200($request, $resp);
         }
 
-        if (!$decode) {
-            // if the raw response has been requested, return immediately
-            return $resp;
-        }
-
-        // otherwise, attempt to decode response into response class and try caching
-
-        $responseModel = $request->getCloudStackResponseModel();
+        // first, decode response
         $decoded = $this->decodeBody($request, $resp);
 
         // if async request, don't test for cache
@@ -242,170 +234,31 @@ class CloudStackClient
             return new CloudStackResponse\AsyncJobStartResponse($decoded, $request);
         }
 
-        if ($request instanceof CloudStackRequest\CloudStackListRequest) {
-            $response = [];
-            if ($decoded) {
-                $totalCount = (int)($decoded['count'] ?? 0);
-                unset($decoded['count']);
-                if (0 < count($decoded) && is_array($first = reset($decoded))) {
-                    if ($request instanceof CloudStackRequest\CloudStackPageableListRequest) {
-                        $page = $request->getPage();
-                        $pageSize = $request->getPagesize();
-                        foreach(reset($decoded) as $item) {
-                            $response[] = new $responseModel($page, $pageSize, $totalCount, $item);
-                        }
-                    } else {
-                        foreach(reset($decoded) as $item) {
-                            $response[] = new $responseModel($totalCount, $item);
-                        }
-                    }
-                }
-            }
-        } else {
-            $response = new $responseModel($decoded);
+        // otherwise, attempt to unmarshall response into response object
+        $unmarshalledResponse = $this->unmarshalResponse($request, $decoded);
+
+        if (0 !== (RESPONSE_CACHE_PERSIST & $cacheMode) &&
+            null !== $unmarshalledResponse &&
+            (!is_array($unmarshalledResponse) || (is_array($unmarshalledResponse) && 0 < count($unmarshalledResponse)))) {
+            $this->_tryPersistResponseToCache($cacheID, $request, $unmarshalledResponse);
         }
 
-        if ($cacheable && $request->getResponseCachingEnabled()) {
-            $ttl = $request->getResponseCacheTTL();
-            if (!$this->cacheProvider->save($cacheID, $response, $ttl)) {
-                $this->logger->error(sprintf(
-                    'Unable to store cache for command %s with cache id %s',
-                    $command,
-                    $cacheID
-                ));
-            }{% if env.logging.isDebug %} else {
-                $this->logger->debug(sprintf(
-                    'Command %s cache with id %s saved with ttl %d seconds.',
-                    $command,
-                    $cacheID,
-                    $ttl
-                ));
-            }{% endif %}
-
-        }
-
-        return $response;
-    }
-
-    /**
-     * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
-     * @return string
-     */
-    protected function getRequestCacheID(CloudStackRequest\CloudStackCacheableRequest $request): string
-    {
-        $id = "{$this->configuration->getHost()}{$this->configuration->getApiKey()}{$this->configuration->getSecretKey()}{$request->getCloudStackCommandName()}";
-        foreach($request->toUrlParams() as $k => $v) {
-            $id .= "{$k}{$v}";
-        }
-        return {% if env.cache.idPrefix is not null %}'{{ env.cache.idPrefix }}'.{% endif %}sha1($id);
+        return $unmarshalledResponse;
     }
 
     /**
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
-     * @return \GuzzleHttp\Psr7\Request
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws {{ namespace_path('CloudStackTransportException', true) }}
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function createPsr7Request(CloudStackRequest\CloudStackRequestInterface $request): GuzzlePsr7Request
+    protected function executeHTTPRequest(CloudStackRequest\CloudStackRequestInterface $request): ResponseInterface
     {
-        static $headers = ['Accept' => ['application/json'], 'Content-Type' => ['application/x-www-form-urlencoded']];
-
-        $stream = fopen('php://memory', 'w+');
-        fwrite($stream, $this->compileQuery($request));
-
-        if ($request instanceof CloudStackRequest\CloudStackApiCommandRequest) {
-            $path = $this->configuration->getApiPath();
-        } else if ($request instanceof CloudStackRequest\CloudStackConsoleCommandRequest) {
-            $path = $this->configuration->getConsolePath();
-        } else {
-            throw new \DomainException('Unable to determine if request is an API or Console request. Please implement the appropriate interface.');
+        try {
+            return $this->configuration->getHttpClient()->send($this->createPsr7Request($request), static::GUZZLE_REQUEST_OPTS);
+        } catch (TransferException $e) {
+            throw new CloudStackTransportException($request, $e);
         }
-
-        return new Request(
-            'POST',
-            new Uri(sprintf('%s/%s', $this->configuration->getCompiledAddress(), $path)),
-            $headers,
-            $stream
-        );
-    }
-
-    /**
-     * @param \Psr\Http\Message\ResponseInterface $resp
-     * @param string $command
-     * @return array
-     * @throws \RuntimeException
-     */
-    protected function decodeBody(CloudStackRequest\CloudStackRequestInterface $request, ResponseInterface $resp): array
-    {
-        $body = $resp->getBody();
-
-        if (0 === $body->getSize()) {
-            throw new CloudStackResponseException($request, 'Received empty response body', 500);
-        }
-
-        $data = $body->getContents();
-
-        $decoded = @json_decode($data, true);
-        if (JSON_ERROR_NONE !== json_last_error()) {
-            throw new CloudStackResponseException(
-                $request,
-                sprintf(
-                    'Unable to decode %s response: %d %s: %s; Body: %s',
-                    $request->getCloudStackCommandName(),
-                    $resp->getStatusCode(),
-                    $resp->getReasonPhrase(),
-                    json_last_error_msg(),
-                    $data
-                ),
-                json_last_error()
-            );
-        }
-
-        $lowerCmd = strtolower($request->getCloudStackCommandName());
-        $propertyResponse = sprintf('%sresponse', $lowerCmd);
-
-        if (!isset($decoded[$propertyResponse])) {
-            // some commands drop the trailing 's' in the response: listPools becomes 'listpoolresponse'
-            $propertyResponse = sprintf('%sresponse', substr($lowerCmd, 0, -1));
-            if (!isset($decoded[$propertyResponse])) {
-                throw new CloudStackResponseException(
-                    $request,
-                    sprintf(
-                        'Expected key "%s" not found in %s response: %d %s; Body: %s',
-                        $propertyResponse,
-                        $request->getCloudStackCommandName(),
-                        $resp->getStatusCode(),
-                        $resp->getReasonPhrase(),
-                        $data
-                    ),
-                    500
-                );
-            }
-        }
-
-        $responseData = $decoded[$propertyResponse];
-
-        // treat special cases of list, create and register calls
-        if (1 === preg_match('/^(list|create|register|update)/', $lowerCmd, $matches, PREG_OFFSET_CAPTURE)) {
-            $commandPrefix = reset($matches[0]);
-            $objectName = substr($lowerCmd, strlen($commandPrefix));
-            if (isset($responseData[$objectName])) {
-                $resultArray = $responseData[$objectName];
-                if (is_array($resultArray)) {
-                    return $resultArray;
-                }
-            } else {
-                /* sometimes, the 's' is kept, as in :
-                   { "listasyncjobsresponse" : { "asyncjobs" : [ ... ] } } */
-                $objectName .= 's';
-                if (isset($responseData[$objectName])) {
-                    $resultArray = $responseData[$objectName];
-                    if (is_array($resultArray)) {
-                        return $resultArray;
-                    }
-                }
-            }
-        }
-
-        return $responseData;
     }
 
     /**
@@ -447,10 +300,7 @@ class CloudStackClient
      */
     protected function encodeQueryForRequest(string $query): string
     {
-        static $search = ['+'];
-        static $replace = ['%20'];
-
-        return str_replace($search, $replace, $query);
+        return str_replace(static::ENCODE_QUERY_REQUEST_SEARCH, static::ENCODE_QUERY_REQUEST_REPLACE, $query);
     }
 
     /**
@@ -459,9 +309,313 @@ class CloudStackClient
      */
     protected function encodeQueryForSignature(string $query): string
     {
-        static $search = ['+', '%5B', '%5D'];
-        static $replace = ['%20', '[', ']'];
+        return str_replace(static::ENCODE_QUERY_SIGNATURE_SEARCH, static::ENCODE_QUERY_SIGNATURE_REPLACE, $query);
+    }
 
-        return str_replace($search, $replace, $query);
+    /**
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @return \Psr\Http\Message\RequestInterface
+     */
+    protected function createPsr7Request(CloudStackRequest\CloudStackRequestInterface $request): RequestInterface
+    {
+        $stream = fopen('php://memory', 'w+');
+        fwrite($stream, $this->compileQuery($request));
+
+        if ($request instanceof CloudStackRequest\CloudStackApiCommandRequest) {
+            $path = $this->configuration->getApiPath();
+        } else if ($request instanceof CloudStackRequest\CloudStackConsoleCommandRequest) {
+            $path = $this->configuration->getConsolePath();
+        } else {
+            throw new \DomainException('Unable to determine if request is an API or Console request. Please implement the appropriate interface.');
+        }
+
+        return new GuzzlePsr7Request(
+            'POST',
+            new GuzzlePsr7Uri(sprintf('%s/%s', $this->configuration->getCompiledAddress(), $path)),
+            static::HTTP_REQUEST_HEADERS,
+            $stream
+        );
+    }
+
+    /**
+     * This method is called anytime the API returns a non-200 response
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @param \Psr\Http\Message\ResponseInterface $response
+     * @throws {{ namespace_path('CloudStackAPIException', true) }}
+     * @throws {{ namespace_path('CloudStackResponseException', true) }}
+     */
+    protected function handleNon200(CloudStackRequest\CloudStackRequestInterface $request, ResponseInterface $response): void {
+        // attempt to decode response...
+        $data = $response->getBody()->getContents();
+
+        $decoded = @json_decode($data, true);
+
+        // if no decode error seen, throw exception with decoded body
+        if (JSON_ERROR_NONE === json_last_error()) {
+            if (1 === count($decoded)) {
+                $decoded = reset($decoded);
+            }
+            if (isset($decoded['errortext'])) {
+                throw new CloudStackAPIException($request, $decoded);
+            }
+        }
+
+        throw new CloudStackResponseException(
+            $request,
+            sprintf(
+                'Unable to json_decode non-200 response: %d %s: %s; Body: %s',
+                $response->getStatusCode(),
+                $response->getReasonPhrase(),
+                json_last_error_msg(),
+                $data
+            ),
+            json_last_error()
+        );
+    }
+
+    /**
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }}
+     * @param \Psr\Http\Message\ResponseInterface $response
+     * @return array
+     * @throws \RuntimeException
+     */
+    protected function decodeBody(CloudStackRequest\CloudStackRequestInterface $request, ResponseInterface $response): array
+    {
+        $body = $response->getBody();
+
+        if (0 === $body->getSize()) {
+            throw new CloudStackResponseException($request, 'Received empty response body', 500);
+        }
+
+        $data = $body->getContents();
+
+        $decoded = @json_decode($data, true);
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new CloudStackResponseException(
+                $request,
+                sprintf(
+                    'Unable to decode %s response: %d %s: %s; Body: %s',
+                    $request->getCloudStackCommandName(),
+                    $response->getStatusCode(),
+                    $response->getReasonPhrase(),
+                    json_last_error_msg(),
+                    $data
+                ),
+                json_last_error()
+            );
+        }
+
+        $lowerCmd = strtolower($request->getCloudStackCommandName());
+        $propertyResponse = "{$lowerCmd}response";
+
+        if (!isset($decoded[$propertyResponse])) {
+            // some commands drop the trailing 's' in the response: listPools becomes 'listpoolresponse'
+            $propertyResponse = sprintf('%sresponse', substr($lowerCmd, 0, -1));
+            if (!isset($decoded[$propertyResponse])) {
+                throw new CloudStackResponseException(
+                    $request,
+                    sprintf(
+                        'Expected key "%s" not found in %s response: %d %s; Body: %s',
+                        $propertyResponse,
+                        $request->getCloudStackCommandName(),
+                        $response->getStatusCode(),
+                        $response->getReasonPhrase(),
+                        $data
+                    ),
+                    500
+                );
+            }
+        }
+
+        $responseData = $decoded[$propertyResponse];
+        $prefix = null;
+
+        // treat special cases of list, create and register calls
+        if (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_LIST)) {
+            $prefix = self::RESPONSE_PREFIX_LIST;
+        } elseif (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_CREATE)) {
+            $prefix = self::RESPONSE_PREFIX_CREATE;
+        } elseif (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_REGISTER)) {
+            $prefix = self::RESPONSE_PREFIX_REGISTER;
+        } elseif (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_UPDATE)) {
+            $prefix = self::RESPONSE_PREFIX_UPDATE;
+        }
+
+        if (null !== $prefix) {
+            // search for key like: {"listtemplatesresponse": {"template": [...]}}
+            $objectName = substr($lowerCmd, strlen($prefix));
+            if (isset($responseData[$objectName])) {
+                if (is_array($responseData[$objectName])) {
+                    return $responseData[$objectName];
+                }
+            } else {
+                // sometimes the 's' is kept, as in: {"listasyncjobsresponse": {"asyncjobs": [...]}}
+                $objectName = "{$objectName}s";
+                if (isset($responseData[$objectName]) && is_array($responseData[$objectName])) {
+                    return $responseData[$objectName];
+                }
+            }
+        }
+
+        // if we make it this far, return the raw decoded response.
+        return $responseData;
+    }
+
+    /**
+     * This method takes the decoded response data and shoves it into an object or array of objects
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @param null|array $decoded
+     * @return {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[]
+     */
+    protected function unmarshalResponse(CloudStackRequest\CloudStackRequestInterface $request, ?array $decoded)
+    {
+        $responseModelClass = $request->getCloudStackResponseModel();
+
+        // if the executed request is expected to return an array of objects...
+        if ($request instanceof CloudStackRequest\CloudStackListRequest) {
+            $unmarshalled = [];
+            if (null !== $decoded) {
+                $totalCount = (int)($decoded['count'] ?? 0);
+                unset($decoded['count']);
+                if (0 < count($decoded) && is_array(($data = reset($decoded)))) {
+                    if ($request instanceof CloudStackRequest\CloudStackPageableListRequest) {
+                        // ... and supports paging.
+                        $page = $request->getPage();
+                        $pageSize = $request->getPagesize();
+                        foreach($data as $item) {
+                            $unmarshalled[] = new $responseModelClass($page, $pageSize, $totalCount, $item);
+                        }
+                    } else {
+                        // ... and does not support paging
+                        foreach($data as $item) {
+                            $unmarshalled[] = new $responseModelClass($totalCount, $item);
+                        }
+                    }
+                }
+            }
+            return $unmarshalled;
+        }
+
+        // otherwise, just return response class with raw decoded data.
+        return new $responseModelClass($decoded);
+    }
+
+    /**
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
+     * @return string
+     */
+    private function _getRequestCacheID(CloudStackRequest\CloudStackCacheableRequest $request): string
+    {
+        // build prefix
+        $id = "{$this->_cacheKeyPrefix}{$request->getCloudStackCommandName()}";
+
+        // add each valued property to the id string to be hashed
+        foreach($request->toUrlParams() as $k => $v) {
+            if (null !== $v) {
+                $id .= "{$k}{$v}";
+            }
+        }
+
+        // hash and return string as ID
+        return {% if env.cache.idPrefix is not null %}'{{ env.cache.idPrefix }}'.{% endif %}sha1($id);
+    }
+
+    /**
+     * Determine a given requests cache mode and generate ID if enabled
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
+     * @return array
+     */
+    private function _determineCacheable(CloudStackRequest\CloudStackRequestInterface $request): array
+    {
+        if (isset($this->cacheProvider) &&
+            ($request instanceof CloudStackRequest\CloudStackCacheableRequest) &&
+            RESPONSE_CACHE_DISABLE !== ($cacheMode = $request->getResponseCacheMode())) {
+            return [$this->_getRequestCacheID($request), $cacheMode];
+        }
+        return ['', RESPONSE_CACHE_DISABLE];
+    }
+
+    /**
+     * Attempt fetch and then validate a cached response
+     * @param string $cacheID
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
+     * @return null|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[]
+     */
+    private function _tryFetchCachedResponse(string $cacheID, CloudStackRequest\CloudStackCacheableRequest $request)
+    {
+        // test if cached response is present
+        if (!$this->cacheProvider->contains($cacheID)) {
+{% if env.logging.isDebug %}
+            $this->logger->debug(sprintf('Command %s cache with ID %s not found', $request->getCloudStackCommandName(), $cacheID));{% endif %}
+
+            return null;
+        }
+{% if env.logging.isDebug %}
+        $this->logger->debug(sprintf('Command %s cache with ID %s found', $request->getCloudStackCommandName(), $cacheID));{% endif %}
+
+        // attempt to fetch cached response
+        $cachedResponse = $this->cacheProvider->fetch($cacheID);
+        if (false === $cachedResponse) {
+            $this->logger->error(sprintf('Command %s cache with ID %s found, but fetching failed!', $request->getCloudStackCommandName(), $cacheID));
+            return null;
+        }
+
+        // test for really old objects
+        if (!($cachedResponse instanceof CloudStackCachedResponse)) {
+            $this->logger->warning(sprintf('Command %s cache with ID %s is stale, will not use', $request->getCloudStackCommandName(), $cacheID));
+            return null;
+        }
+
+        /** @var {{ namespace_path('CloudStackCachedResponse', true) }} $cachedResponse */
+
+        // test for out of date objects
+        if (CloudStackGenerationMeta::ID !== $cachedResponse->getGenerationID()) {
+            $this->logger->warning(sprintf(
+                'Command %s cache with ID %s has generation ID of %d, but current is %d.  Will not use.',
+                $request->getCloudStackCommandName(),
+                $cacheID,
+                $cachedResponse->getGenerationID(),
+                CloudStackGenerationMeta::ID
+            ));
+            return null;
+        }
+
+{% if env.logging.isDebug %}
+        $this->logger->debug(sprintf('Command %s cache with ID %s found and is valid', $request->getCloudStackCommandName(), $cacheID));{% endif %}
+
+        // finally, if we get this far, assume sanity and return.
+        return $cachedResponse->getResponse();
+    }
+
+    /**
+     * Attempts to persist a successful response to cache
+     * @param string $cacheID
+     * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
+     * @param {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[] $unmarshalledResponse
+     * @return void
+     */
+    private function _tryPersistResponseToCache(
+        string $cacheID,
+        CloudStackRequest\CloudStackCacheableRequest $request,
+        $unmarshalledResponse): void {
+        // determine configured TTL of this request's cache
+        $ttl = $request->getResponseCacheTTL();
+
+        // attempt to persist to cache
+        if (!$this->cacheProvider->save($cacheID, new CloudStackCachedResponse($unmarshalledResponse), $ttl)) {
+            $this->logger->error(sprintf(
+                'Unable to store cache for command %s with cache id %s',
+                $request->getCloudStackCommandName(),
+                $cacheID
+            ));
+        }{% if env.logging.isDebug %} else {
+            $this->logger->debug(sprintf(
+                'Command %s cache with id %s saved with ttl %d seconds.',
+                $request->getCloudStackCommandName(),
+                $cacheID,
+                $ttl
+            ));
+        }{% endif %}
+
     }
 }
