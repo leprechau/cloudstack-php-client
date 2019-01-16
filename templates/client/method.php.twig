@@ -36,7 +36,7 @@
      * @param bool $enableResponseCaching Whether to allow the response from this specific request to be cached for later use
      * @param int $cacheTTL Time in seconds to cache response, if allowed
 {% endif %}
-     * @return {% if api.isAsync %}AsyncJobStartResponse{% else %}{{ determine_class(api.response, true) }}{% if api.list %}[]{% endif %}{% endif %}
+     * @return {% if api.isAsync %}{{ namespace_path('CloudStackResponse\\AsyncJobStartResponse', true) }}{% else %}{{ determine_class(api.response, true) }}{% if api.list %}[]{% endif %}{% endif %}
 
      */
     public function {{ api.name }}({# only define required paramaters in function #}
