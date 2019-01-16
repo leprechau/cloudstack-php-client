@@ -98,6 +98,6 @@ final class CloudStackCachedResponse implements \JsonSerializable
      */
     private static function createInvalidArgumentException($response): \InvalidArgumentException
     {
-        return new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of at least one CloudStackResponseInterface, object(s).  %s seen', gettype($response)));
+        return new \InvalidArgumentException(sprintf('$response must be a single, or an array of at least one, instance of CloudStackResponseInterface object(s). %s seen', gettype($response)));
     }
 }
