@@ -237,9 +237,9 @@ class CloudStackClient
         // otherwise, attempt to unmarshall response into response object
         $unmarshalledResponse = $this->unmarshalResponse($request, $decoded);
 
-        if (0 !== (RESPONSE_CACHE_PERSIST & $cacheMode) &&
-            null !== $unmarshalledResponse &&
-            (!is_array($unmarshalledResponse) || (is_array($unmarshalledResponse) && 0 < count($unmarshalledResponse)))) {
+        // if the specified mode allows persistence and the data is both not null AND not an empty array, attempt
+        // to persist to cache
+        if (0 !== (RESPONSE_CACHE_PERSIST & $cacheMode) && null !== $unmarshalledResponse && [] !== $unmarshalledResponse) {
             $this->_tryPersistResponseToCache($cacheID, $request, $unmarshalledResponse);
         }
 
