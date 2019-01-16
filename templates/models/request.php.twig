@@ -60,10 +60,7 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
     const COMMAND_NAME = '{{ api.name }}';
 {% if requiredParamLength > 0 or optionalParamLength > 0 %}
 
-{% for prop in api.parameters %}
-    const {{ prop.getFieldConstantName }} = '{{ prop.name }}';
-{% endfor %}
-{% for prop in api.parameters %}
+{{ class_field_constants(api.parameters) }}{% for prop in api.parameters %}
 
 {{ prop.propertyDocBloc }}
     private ${{ prop.name }};

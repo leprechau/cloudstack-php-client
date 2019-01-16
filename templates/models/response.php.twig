@@ -29,10 +29,7 @@
 class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageableResponse %}CloudStackPageableListResponse{% elseif isListResponse %}CloudStackListResponse{% else %}CloudStackResponseInterface{% endif %}{% endif %}
 
 {
-{% for prop in obj.properties %}
-    const {{ prop.getFieldConstantName }} = '{{ prop.name }}';
-{% endfor %}
-
+{{ class_field_constants(obj.properties) }}
 {% for prop in obj.properties %}
 {{ prop.propertyDocBloc }}
     public ${{ prop.name }};

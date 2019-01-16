@@ -14,21 +14,23 @@
 
 {{ namespace_stmt() }}
 
-use GuzzleHttp\Exception\TransferException;
-
 {{ file_header(capabilities) }}
+
+use {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface') }};
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * CloudStackTransportException
+ * @package {{ namespace_path('', true) }}
  */
 class CloudStackTransportException extends AbstractCloudStackException
 {
     /**
      * CloudStackTransportException
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
-     * @param \GuzzleHttp\Exception\TransferException $e
+     * @param \GuzzleHttp\Exception\GuzzleException $e
      */
-    public function __construct(CloudStackRequest\CloudStackRequestInterface $request, TransferException $e)
+    public function __construct(CloudStackRequestInterface $request, GuzzleException $e)
     {
         parent::__construct($request, $e->getMessage(), $e->getCode(), $e);
     }

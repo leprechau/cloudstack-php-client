@@ -16,12 +16,27 @@
 
 {{ file_header(capabilities) }}
 
-use GuzzleHttp\Exception\TransferException;
+use Doctrine\Common\Cache\Cache as CacheProvider;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Uri as GuzzlePsr7Uri;
 use GuzzleHttp\Psr7\Request as GuzzlePsr7Request;
 use GuzzleHttp\RequestOptions;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+
+// these few imports are explicitly done so i don't have to prefix them everywhere.
+// i do not import all request classes because...c'mon now.
+use {{ namespace_path('CloudStackRequest\\AccessVmConsoleProxyRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackApiCommandRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackAsynchronousRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackConsoleCommandRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackListRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackPageableListRequest') }};
+use {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface') }};
+use {{ namespace_path('CloudStackResponse\\AccessVmConsoleProxyResponse') }};
+use {{ namespace_path('CloudStackResponse\\AsyncJobStartResponse') }};
+use {{ namespace_path('CloudStackResponse\\QueryAsyncJobResultResponse') }};
 
 /**
  * CloudStackClient class
@@ -29,6 +44,9 @@ use Psr\Http\Message\ResponseInterface;
  */
 class CloudStackClient
 {
+    const DEFAULT_ASYNC_POLL_INTERVAL = 2;   // number of seconds to wait between poll attempts
+    const DEFAULT_ASYNC_RETRY_LIMIT   = 120; // number of polls to execute before stopping
+
     // options applied to each request
     protected const GUZZLE_REQUEST_OPTS = [
         RequestOptions::HTTP_ERRORS    => false,
@@ -114,7 +132,7 @@ class CloudStackClient
     /**
      * @return \Doctrine\Common\Cache\Cache|null
      */
-    public function getCacheProvider()
+    public function getCacheProvider(): ?CacheProvider
     {
         return $this->cache ?? null;
     }
@@ -130,8 +148,8 @@ class CloudStackClient
      */
     public function accessVmConsoleProxy($vmId)
     {
-        $response = $this->executeHTTPRequest(new CloudStackRequest\AccessVmConsoleProxyRequest($vmId));
-        $model = new CloudStackResponse\AccessVmConsoleProxyResponse();
+        $response = $this->executeHTTPRequest(new AccessVmConsoleProxyRequest($vmId));
+        $model = new AccessVmConsoleProxyResponse();
         $model->vmid = $vmId;
         $model->iframe = $response->getBody()->getContents();
         return $model;
@@ -140,13 +158,19 @@ class CloudStackClient
     /**
      * Will wait until either $tries threshold is met or async job completes, successful or otherwise.
      *
+     * NOTE: If the poll limit is reached, that does NOT mean the job as stopped! It merely means that you are no longer
+     *       waiting around to hear the response.
+     *
      * @param {{ namespace_path('CloudStackResponse\\AsyncJobStartResponse', true) }} $startResponse
      * @param int $sleep
      * @param int $tries
      * @return {{ namespace_path('CloudStackResponse\\QueryAsyncJobResultResponse', true) }}|null
      * @throws \InvalidArgumentException
      */
-    public function waitForAsync(CloudStackResponse\AsyncJobStartResponse $startResponse, int $sleep = 2, int $tries = 120): ?CloudStackResponse\QueryAsyncJobResultResponse
+    public function waitForAsync(
+        AsyncJobStartResponse $startResponse,
+        int $sleep = self::DEFAULT_ASYNC_POLL_INTERVAL,
+        int $tries = self::DEFAULT_ASYNC_RETRY_LIMIT): ?QueryAsyncJobResultResponse
     {
         // Some basic validation
         if (0 >= $sleep) {
@@ -202,7 +226,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }}
      * @return mixed
      */
-    public function doRequest(CloudStackRequest\CloudStackRequestInterface $request)
+    public function doRequest(CloudStackRequestInterface $request)
     {
         // ensure required fields are present
         $request->validateRequest();
@@ -230,8 +254,8 @@ class CloudStackClient
         $decoded = $this->decodeBody($request, $resp);
 
         // if async request, don't test for cache
-        if ($request instanceof CloudStackRequest\CloudStackAsynchronousRequest) {
-            return new CloudStackResponse\AsyncJobStartResponse($decoded, $request);
+        if ($request instanceof CloudStackAsynchronousRequest) {
+            return new AsyncJobStartResponse($decoded, $request);
         }
 
         // otherwise, attempt to unmarshall response into response object
@@ -250,13 +274,12 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
      * @return \Psr\Http\Message\ResponseInterface
      * @throws {{ namespace_path('CloudStackTransportException', true) }}
-     * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function executeHTTPRequest(CloudStackRequest\CloudStackRequestInterface $request): ResponseInterface
+    protected function executeHTTPRequest(CloudStackRequestInterface $request): ResponseInterface
     {
         try {
             return $this->configuration->getHttpClient()->send($this->createPsr7Request($request), static::GUZZLE_REQUEST_OPTS);
-        } catch (TransferException $e) {
+        } catch (GuzzleException $e) {
             throw new CloudStackTransportException($request, $e);
         }
     }
@@ -265,7 +288,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
      * @return array
      */
-    protected function compileParameters(CloudStackRequest\CloudStackRequestInterface $request): array
+    protected function compileParameters(CloudStackRequestInterface $request): array
     {
         $params = $request->toUrlParams();
 
@@ -284,7 +307,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
      * @return string
      */
-    protected function compileQuery(CloudStackRequest\CloudStackRequestInterface $request): string
+    protected function compileQuery(CloudStackRequestInterface $request): string
     {
         $query = http_build_query($this->compileParameters($request));
         return sprintf(
@@ -316,14 +339,14 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
      * @return \Psr\Http\Message\RequestInterface
      */
-    protected function createPsr7Request(CloudStackRequest\CloudStackRequestInterface $request): RequestInterface
+    protected function createPsr7Request(CloudStackRequestInterface $request): RequestInterface
     {
         $stream = fopen('php://memory', 'w+');
         fwrite($stream, $this->compileQuery($request));
 
-        if ($request instanceof CloudStackRequest\CloudStackApiCommandRequest) {
+        if ($request instanceof CloudStackApiCommandRequest) {
             $path = $this->configuration->getApiPath();
-        } else if ($request instanceof CloudStackRequest\CloudStackConsoleCommandRequest) {
+        } else if ($request instanceof CloudStackConsoleCommandRequest) {
             $path = $this->configuration->getConsolePath();
         } else {
             throw new \DomainException('Unable to determine if request is an API or Console request. Please implement the appropriate interface.');
@@ -344,7 +367,7 @@ class CloudStackClient
      * @throws {{ namespace_path('CloudStackAPIException', true) }}
      * @throws {{ namespace_path('CloudStackResponseException', true) }}
      */
-    protected function handleNon200(CloudStackRequest\CloudStackRequestInterface $request, ResponseInterface $response): void {
+    protected function handleNon200(CloudStackRequestInterface $request, ResponseInterface $response): void {
         // attempt to decode response...
         $data = $response->getBody()->getContents();
 
@@ -379,7 +402,7 @@ class CloudStackClient
      * @return array
      * @throws \RuntimeException
      */
-    protected function decodeBody(CloudStackRequest\CloudStackRequestInterface $request, ResponseInterface $response): array
+    protected function decodeBody(CloudStackRequestInterface $request, ResponseInterface $response): array
     {
         $body = $response->getBody();
 
@@ -467,18 +490,18 @@ class CloudStackClient
      * @param null|array $decoded
      * @return {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[]
      */
-    protected function unmarshalResponse(CloudStackRequest\CloudStackRequestInterface $request, ?array $decoded)
+    protected function unmarshalResponse(CloudStackRequestInterface $request, ?array $decoded)
     {
         $responseModelClass = $request->getCloudStackResponseModel();
 
         // if the executed request is expected to return an array of objects...
-        if ($request instanceof CloudStackRequest\CloudStackListRequest) {
+        if ($request instanceof CloudStackListRequest) {
             $unmarshalled = [];
             if (null !== $decoded) {
                 $totalCount = (int)($decoded['count'] ?? 0);
                 unset($decoded['count']);
                 if (0 < count($decoded) && is_array(($data = reset($decoded)))) {
-                    if ($request instanceof CloudStackRequest\CloudStackPageableListRequest) {
+                    if ($request instanceof CloudStackPageableListRequest) {
                         // ... and supports paging.
                         $page = $request->getPage();
                         $pageSize = $request->getPagesize();
@@ -504,7 +527,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
      * @return string
      */
-    private function _getRequestCacheID(CloudStackRequest\CloudStackCacheableRequest $request): string
+    private function _getRequestCacheID(CloudStackCacheableRequest $request): string
     {
         // build prefix
         $id = "{$this->_cacheKeyPrefix}{$request->getCloudStackCommandName()}";
@@ -525,10 +548,10 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackRequestInterface', true) }} $request
      * @return array
      */
-    private function _determineCacheable(CloudStackRequest\CloudStackRequestInterface $request): array
+    private function _determineCacheable(CloudStackRequestInterface $request): array
     {
         if (isset($this->cacheProvider) &&
-            ($request instanceof CloudStackRequest\CloudStackCacheableRequest) &&
+            ($request instanceof CloudStackCacheableRequest) &&
             RESPONSE_CACHE_DISABLE !== ($cacheMode = $request->getResponseCacheMode())) {
             return [$this->_getRequestCacheID($request), $cacheMode];
         }
@@ -541,7 +564,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackRequest\\CloudStackCacheableRequest', true) }} $request
      * @return null|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[]
      */
-    private function _tryFetchCachedResponse(string $cacheID, CloudStackRequest\CloudStackCacheableRequest $request)
+    private function _tryFetchCachedResponse(string $cacheID, CloudStackCacheableRequest $request)
     {
         // test if cached response is present
         if (!$this->cacheProvider->contains($cacheID)) {
@@ -594,10 +617,7 @@ class CloudStackClient
      * @param {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[] $unmarshalledResponse
      * @return void
      */
-    private function _tryPersistResponseToCache(
-        string $cacheID,
-        CloudStackRequest\CloudStackCacheableRequest $request,
-        $unmarshalledResponse): void {
+    private function _tryPersistResponseToCache(string $cacheID, CloudStackCacheableRequest $request, $unmarshalledResponse): void {
         // determine configured TTL of this request's cache
         $ttl = $request->getResponseCacheTTL();
 

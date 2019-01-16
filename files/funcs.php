@@ -592,3 +592,71 @@ PHP;
 
     return $c . "    }";
 }
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\API\Variable[] $optionalArgs
+ * @return string
+ */
+function buildOptionalArgumentCodeDocBloc(array $optionalArgs): string
+{
+    $nameBuffer = 0;
+    $typeBuffer = 0;
+    foreach ($optionalArgs as $arg) {
+        if (($n = strlen($arg->getName())) > $nameBuffer) {
+            $nameBuffer = $n;
+        }
+        if (($n = strlen($arg->getPHPTypeTagValue())) > $typeBuffer) {
+            $typeBuffer = $n;
+        }
+    }
+
+    // account for ""
+    $nameBuffer += 2;
+    // account for {}
+    $typeBuffer += 2;
+
+    $bloc = <<<EOT
+     * <code>
+     *      \$optArgs = [
+
+EOT;
+
+    foreach ($optionalArgs as $arg) {
+        $bloc .= sprintf(
+            "     *          %-{$nameBuffer}s => %-{$typeBuffer}s // %s\n",
+            "'{$arg->getName()}'",
+            "{{$arg->getPHPTypeTagValue()}}",
+            ucfirst($arg->getDescription())
+        );
+    }
+
+    return $bloc . <<<EOT
+     *      ];
+     * </code>
+
+EOT;
+}
+
+/**
+ * @param \MyENA\CloudStackClientGenerator\API\VariableContainer $fields
+ * @return string
+ */
+function buildClassFieldConstants(VariableContainer $fields): string
+{
+    $buffer = 0;
+    foreach ($fields as $field) {
+        if (($n = strlen($field->getFieldConstantName())) > $buffer) {
+            $buffer = $n;
+        }
+    }
+
+    $out = '';
+    foreach ($fields as $field) {
+        $out .= sprintf(
+            "    const %-{$buffer}s = '%s';\n",
+            $field->getFieldConstantName(),
+            $field->getName()
+        );
+    }
+    return $out;
+}

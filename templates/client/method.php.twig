@@ -29,20 +29,14 @@
 {% endfor %}
 {# end required paramaters #}
 {% if optionalParamLength > 0 %}
-     * @param array $optArgs {
-{# document all optional paramaters #}
-{% for param in optionalParams %}
-     *     @type string ${{ param.name }} {{ param.description|raw|ucfirst }}
-{% endfor %}
-{# end optional arguments #}
-     * }
-{% endif %}
+     * @param array $optArgs
+{{ optional_argument_code_docbloc(optionalParams) }}{% endif %}
 {% if api.isCacheable %}
      * @param bool $useCachedResponse Whether to allow the use of a previously cached response for this specific request
      * @param bool $enableResponseCaching Whether to allow the response from this specific request to be cached for later use
      * @param int $cacheTTL Time in seconds to cache response, if allowed
 {% endif %}
-     * @return {% if api.isAsync %}{{ namespace_path('CloudStackResponse', true) }}\AsyncJobStartResponse{% else %}{{ determine_class(api.response, true) }}{% if api.list %}[]{% endif %}{% endif %}
+     * @return {% if api.isAsync %}AsyncJobStartResponse{% else %}{{ determine_class(api.response, true) }}{% if api.list %}[]{% endif %}{% endif %}
 
      */
     public function {{ api.name }}({# only define required paramaters in function #}

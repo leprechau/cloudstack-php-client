@@ -443,12 +443,12 @@ class Generator
         }
 
         $this->writeFile(
-            $this->srcDir.'/constants.php',
+            $this->srcDir . '/constants.php',
             $this->twig->load('constants.php.twig')->render([])
         );
 
         $this->writeFile(
-            $this->srcDir.'/CloudStackCachedResponse.php',
+            $this->srcDir . '/CloudStackCachedResponse.php',
             $this->twig->load('cachedResponse.php.twig')->render([])
         );
 
@@ -737,6 +737,16 @@ class Generator
             function () use ($generationID): int {
                 return $generationID;
             },
+            ['is_safe' => ['html']]
+        ));
+        $this->twig->addFunction(new \Twig_Function(
+            'optional_argument_code_docbloc',
+            '\\MyENA\\CloudStackClientGenerator\\buildOptionalArgumentCodeDocBloc',
+            ['is_safe' => ['html']]
+        ));
+        $this->twig->addFunction(new \Twig_Function(
+            'class_field_constants',
+            '\\MyENA\\CloudStackClientGenerator\\buildClassFieldConstants',
             ['is_safe' => ['html']]
         ));
     }
