@@ -16,8 +16,16 @@
 
 {{ file_header(capabilities) }}
 
+/**
+ * CloudStackCachedResponse
+ * @package {{ namespace_path('', true) }}
+ */
 final class CloudStackCachedResponse implements \JsonSerializable
 {
+    private const FIELD_GENERATION_ID      = 'generationID';
+    private const FIELD_RESPONSE           = 'response';
+    private const FIELD_RESPONSE_CLASSNAME = 'responseClassname';
+
     /** @var int */
     private $generationID = CloudStackGenerationMeta::ID;
     /** @var {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }} */
@@ -31,18 +39,18 @@ final class CloudStackCachedResponse implements \JsonSerializable
      */
     public function __construct($response)
     {
-        $this->response = $response;
         if (is_array($response)) {
-            if ($response[0] instanceof CloudStackResponse\CloudStackResponseInterface) {
+            if ([] !== $response && $response[0] instanceof CloudStackResponse\CloudStackResponseInterface) {
                 $this->responseClassname = get_class($response[0]);
             } else {
-                throw new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of CloudStackResponseInterface objects, %s seen', gettype($response)));
+                throw self::createInvalidArgumentException($response);
             }
         } else if ($response instanceof CloudStackResponse\CloudStackResponseInterface) {
             $this->responseClassname = get_class($response);
         } else {
-            throw new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of CloudStackResponseInterface objects, %s seen', gettype($response)));
+            throw self::createInvalidArgumentException($response);
         }
+        $this->response = $response;
     }
 
     /**
@@ -77,9 +85,19 @@ final class CloudStackCachedResponse implements \JsonSerializable
     public function jsonSerialize()
     {
         return [
-            'generationID'  => $this->getGenerationID(),
-            'response'      => $this->getResponse(),
-            'responseClass' => $this->getResponseClassname(),
+            self::FIELD_GENERATION_ID      => $this->getGenerationID(),
+            self::FIELD_RESPONSE           => $this->getResponse(),
+            self::FIELD_RESPONSE_CLASSNAME => $this->getResponseClassname(),
         ];
+    }
+
+    /**
+     * TODO: more descriptive errors
+     * @param mixed $response
+     * @return \InvalidArgumentException
+     */
+    private static function createInvalidArgumentException($response): \InvalidArgumentException
+    {
+        return new \InvalidArgumentException(sprintf('$response must be a single instance of, or array of at least one CloudStackResponseInterface, object(s).  %s seen', gettype($response)));
     }
 }
