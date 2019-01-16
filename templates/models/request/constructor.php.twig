@@ -17,12 +17,9 @@
 {%  if requiredParamLength > 0 %}{% for param in requiredParams %}
      * @param {{ param.PHPTypeTagValue }} ${{ param.name }} {{ param.description|raw|ucfirst }}
 {% endfor %}{% endif %}{% if optionalParamLength > 0 %}
-     * @param array $optArgs {
-{% for param in optionalParams %}{# document all optional paramaters #}
-     *     @type {{ param.PHPTypeTagValue }} ${{ param.name }} {{ param.description|raw|ucfirst }}
-{% endfor %}{# end optional arguments #}
-     * }
-{% endif %}{% if api.isCacheable %}
+     * @param array $optArgs
+{{ optional_argument_code_docbloc(optionalParams) }}{% endif %}
+{% if api.isCacheable %}
      * @param bool $useCachedResponse Whether to allow the use of a previously cached response for this specific request
      * @param bool $enableResponseCaching Whether to allow the response from this specific request to be cached for later use
      * @param int $cacheTTL Time in seconds to cache response, if allowed
