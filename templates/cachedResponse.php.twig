@@ -34,21 +34,17 @@ final class CloudStackCachedResponse implements \JsonSerializable
     private $responseClassname;
 
     /**
+     * NOTE: This must ONLY be utilized by the generated client, and it MUST NOT attempt to create a cache from an "empty" response.
+     *
      * CloudStackCachedResponse constructor
      * @param {{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}|{{ namespace_path('CloudStackResponse\\CloudStackResponseInterface', true) }}[] $response The cached response itself
      */
     public function __construct($response)
     {
         if (is_array($response)) {
-            if ([] !== $response && $response[0] instanceof CloudStackResponse\CloudStackResponseInterface) {
-                $this->responseClassname = get_class($response[0]);
-            } else {
-                throw self::createInvalidArgumentException($response);
-            }
-        } else if ($response instanceof CloudStackResponse\CloudStackResponseInterface) {
-            $this->responseClassname = get_class($response);
+            $this->responseClassname = get_class($response[0]);
         } else {
-            throw self::createInvalidArgumentException($response);
+            $this->responseClassname = get_class($response);
         }
         $this->response = $response;
     }
