@@ -34,7 +34,7 @@ class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageabl
 {{ prop.propertyDocBloc }}
     public ${{ prop.name }};
 
-{% endfor %}{% if isListResponse %}
+{% endfor %}{% if isListResponse or isPageableResponse %}
     /** @var int */
     private $totalReturnCount = 0;
 
@@ -55,7 +55,7 @@ class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageabl
 
 {% endif %}
 {% endfor %}
-{% if isListResponse %}
+{% if isListResponse or isPageableResponse %}
 
     /**
      * @return int
