@@ -94,7 +94,7 @@ class {{ obj.className }}{% if obj.shared == false %} implements {% if isPageabl
         $a = [];
 {% for prop in obj.properties %}
         if (isset($this->{{ prop.name }})) {
-            $a[self::{{ prop.getFieldConstantName }}] = $this->{{ prop.name }};
+            $a[{{ prop.getFieldConstantName(true)}}] = $this->{{ prop.name }};
         }
 {% endfor %}
         return $a;

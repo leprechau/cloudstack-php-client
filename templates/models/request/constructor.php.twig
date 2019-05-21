@@ -33,10 +33,13 @@
     {
 {% for param in requiredParams %}
         $this->set{{ param.name|capitalize }}(${{ param.name }});
-{% endfor %}{% if 0 != optionalParamLength %}
-        foreach($optArgs as $k => $v) {
-            $this->{'set'.$k}($v);
+{% endfor %}{% if 0 != optionalParamLength %}{% for param in optionalParams %}
+{% set paramConst = param.fieldConstantName(false) %}
+{% set paramName = param.name %}
+        if (isset($optArgs[self::{{ paramConst }}])){{ ' {' }}
+            $this->set{{ param.name | ucfirst }}($optArgs[self::{{ paramConst}}]);
         }
+{% endfor %}
 {% endif %}{% if api.isCacheable %}
         $this->cacheMode = ($useCachedResponse ? RESPONSE_CACHE_FETCH : 0x0) | ($enableResponseCaching ? RESPONSE_CACHE_PERSIST : 0x0);
         $this->responseCacheTTL = $cacheTTL;
@@ -55,9 +58,9 @@
 {% elseif 0 == requiredParamLength %}{# this object only contains optional parameters #}
         return new static($data);
 {% else %}{% for param in requiredParams %}
-        if (isset($data[self::{{ param.getFieldConstantName }}])) {
-            ${{ param.name }} = $data[self::{{ param.getFieldConstantName }}];
-            unset($data[self::{{ param.getFieldConstantName }}]);
+        if (isset($data[{{ param.getFieldConstantName(true) }}])) {
+            ${{ param.name }} = $data[{{ param.getFieldConstantName(true) }}];
+            unset($data[{{ param.getFieldConstantName(true) }}]);
         } else {
             throw new \DomainException('{{ api.requestClassname }}::fromArray - Required parameter "{{ param.name }}" not found in $data.');
         }

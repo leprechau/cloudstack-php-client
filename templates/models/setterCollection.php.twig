@@ -1,0 +1,48 @@
+{#
+    This file is part of the CloudStack Client Generator.
+
+    (c) Quentin Pleplé <quentin.pleple@gmail.com>
+    (c) Aaron Hurt <ahurt@anbcs.com>
+    (c) Nathan Johnson <nathan@nathanjohnson.info>
+    (c) Daniel Carbone <daniel.p.carbone@gmail.com>
+    (c) Bogdan Gabor <bgabor@ena.com>
+
+    For the full copyright and license information, please view the LICENSE
+    file that was distributed with this source code.
+#}
+    /**
+{{ prop.phpdocDescription }}
+     * @param {{ namespace_path('') }}{{ prop.phpTypeTagValue }} ${{ prop.name }}
+     * @return {{ namespace_path('CloudStackRequest\\' ~ api.requestClassname, true) }}
+     */
+    public function add{{ prop.name|capitalize }} ({}
+
+    /**
+{{ prop.phpdocDescription }}
+     * @param {{ prop.phpType }} ${{ prop.name }}
+     * @return {{ namespace_path('CloudStackRequest\\' ~ api.requestClassname, true) }}
+     */
+    public function set{{ prop.name|capitalize }}(?array ${{ prop.name }}): {{ api.requestClassName }}
+    {
+        if (null === ${{ prop.name }}) {
+            $this->{{ prop.name }} = null;
+            return $this;
+        }
+        if ([] === ${{ prop.name }}) {
+            $this->{{ prop.name }} = [];
+            return $this;
+        }
+        foreach (${{ prop.name }} as $v) {
+
+        }
+
+{% if is_object_variable(prop) %}
+    {% include 'models/setterBodyObject.php.twig' with {'api': api, 'prop': prop, 'env': env} %}
+{% elseif 'date' == prop.type %}
+    {% include "models/setterBodyDate.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% else %}
+    {% include "models/setterBodyDefault.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% endif %}
+        $this->{{ prop.name }} = ${{ prop.name }};
+        return $this;
+    }

@@ -433,22 +433,6 @@ function determineSwaggerName(Variable $var): string
  */
 function objectConstructor(ObjectVariable $obj, ?API $api): string
 {
-    $dates = [];
-    $objects = [];
-
-    foreach ($obj->getProperties() as $name => $property) {
-        if ('date' === $property->getType()) {
-            $dates[] = $property->getName();
-        }
-
-        if ($property instanceof ObjectVariable) {
-            $objects[] = $property->getName();
-        }
-    }
-
-    $datesCnt = count($dates);
-    $objectsCnt = count($objects);
-
     $c = <<<STRING
     /**
      * {$obj->getClassName()} Constructor
@@ -485,86 +469,219 @@ STRING;
 
     }
 
-    // if this is a very simple class, just return the loop and move on.
-    if (0 === $datesCnt && 0 === $objectsCnt) {
-        $c .= <<<STRING
-        foreach (\$data as \$k => \$v) {
-            \$this->{\$k} = \$v;
-        }
+    // TODO: This could stand to be improved.
 
-STRING;
-    } else {
-        // otherwise, do stuff.
-        // TODO: This could stand to be improved.
+    foreach ($obj->getProperties() as $property) {
+        $const = $property->getFieldConstantName(false);
+        $name = $property->getName();
 
-        // zero out any predefined values present in the response class
-        foreach ($obj->getProperties() as $name => $property) {
-            if ($property->isCollection() && $property instanceof ObjectVariable) {
-                $c .= "        \$this->{$name} = [];\n";
-            }
-        }
-
-        // loop through response data and construct object
-        $c .= "        foreach(\$data as \$k => \$v) {\n";
-
-        $first = true;
-
-        foreach ($obj->getProperties() as $name => $property) {
-            $name = $property->getName();
-
-            if (in_array($name, $dates, true)) {
-                // if this field is a known date field, turn into an object
-                if ($first) {
-                    $c .= '            if ';
-                    $first = false;
+        if ('date' === $property->getType()) {
+            if ($property->isCollection()) {
+                $c .= <<<EOT
+        if (isset(\$data[self::{$const}])) {
+            if (is_string(\$data[self::{$const}])) {
+                if ('' === (\$v = trim(\$data[self::{$const}]))) {
+                    \$this->{$name} = [Types\\DateType::fromApiDate(\$v)];
+                }
+            } elseif (is_object(\$data[self::{$const}])) {
+                if (\$data[self::{$const}] instanceof Types\\DateType) {
+                    \$this->{$name} = [\$data[self::{$const}]];
                 } else {
-                    $c .= ' else if ';
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" values must be proper formatted string or instance of "%s", object of type "%s" seen.',
+                        Types\\DateType::class,
+                        get_class(\$data[self::{$const}])
+                    ));
                 }
-
-                $c .= <<<STRING
-({$property->getFieldConstantName(true)} === \$k && '' !== (\$v = trim((string)\$v))) {
-                \$this->{$name} = Types\\DateType::fromApiDate(\$v);
+            } elseif (!is_array(\$data[self::{$const}])) {
+                throw new \\InvalidArgumentException(sprintf(
+                    'Field "{$name}" expected to be array of date values, "%s" seen.',
+                    gettype(\$data[self::{$const}])
+                ));
+            } else {
+                \${$name} = [];
+                foreach(\$data[self::{$const}] as \$i => \$d) {
+                    if (null === \$d) {
+                        continue;
+                    }
+                    if (is_object(\$d)) {
+                        if (\$d instanceof Types\\DateType) {
+                            \${$name}[] = \$d;
+                        } else {
+                            throw new \\InvalidArgumentException(sprintf(
+                                'Field "{$name}" values must be proper formatted string or instance of "%s", offset "%d" has object of type "%s" seen.',
+                                Types\\DateType::class,
+                                \$i,
+                                get_class(\$d)
+                            ));
+                        }
+                    } elseif (is_string(\$d)) {
+                        if ('' !== (\$d = trim(\$d))) {
+                            \${$name}[] = Types\\DateType::fromApiDate(\$v);
+                        }                    
+                    } else {
+                        throw new \InvalidArgumentException(sprintf(
+                            'Field "{$name}" values must be proper formatted string or instance of "%s", offset "%d" value of type "%s" seen.',
+                            Types\\DateType::class,
+                            \$i,
+                            gettype(\$d)
+                        ));
+                    }
+                }
+                \$this->{$name} = ([] === \${$name}) ? null : \${$name};
             }
-STRING;
-            }
+        }
 
-            if ($property instanceof ObjectVariable) {
-                // if this field is an object, construct
-                if ($first) {
-                    $c .= '            if ';
-                    $first = false;
+EOT;
+            } else {
+                $c .= <<<EOT
+        if (isset(\$data[self::{$const}])) {
+            if (is_object(\$data[self::{$const}])) {
+                if (!(\$data[self::{$const}] instanceof Types\\DateType)) {
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" values must be proper formatted string or instance of "%s", object of type "%s" seen.',
+                        Types\\DateType::class,
+                        get_class(\$data[self::{$const}])
+                    ));
+                }
+                \$this->{$name} = \$data[self::{$const}];
+            } elseif (is_string(\$data[self::{$const}])) {
+                if ('' !== (\$v = trim(\$data[self::{$const}]))) {
+                    \$this->{$name} = Types\\DateType::fromApiDate(\$v);                
+                }
+            } else {
+                throw new \InvalidArgumentException(sprintf(
+                    'Field "{$name}" values must be proper formatted string or instance of "%s", type "%s" seen.',
+                    Types\\DateType::class,
+                    gettype(\$data[self::{$const}])
+                ));
+            }
+        }
+
+EOT;
+            }
+        } elseif ($property instanceof ObjectVariable) {
+            $className = determineClass($property);
+            if ($property->isCollection()) {
+                $c .= <<<EOT
+        if (isset(\$data[self::{$const}])) {
+            if (is_object(\$data[self::{$const}])) {
+                if (!(\$data[self::{$const}] instanceof {$className})) {
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" must be instance of "%s", array descriptor, or array of objects or descriptors, single object of class "%s" seen.',
+                        {$className}::class,
+                        get_class(\$data[self::{$const}]) 
+                    ));
+                }
+                \$this->{$name} = [\$data[self::{$const}]];
+            } elseif (is_array(\$data[self::{$const}])) {
+                if (is_string(key(\$data[self::{$const}]))) {
+                    \$this->{$name} = [new {$className}(\$data[self::{$const}])];
                 } else {
-                    $c .= ' else if ';
-                }
-
-                if ($property->isCollection()) {
-                    $c .= "({$property->getFieldConstantName(true)} === \$k && is_array(\$v)) {\n";
-                    $c .= "                foreach(\$v as \$value) {\n";
-                    $c .= "                    \$this->{$name}[] = new " . determineClass($property) . "(\$value);\n";
-                    $c .= <<<STRING
-                }
-            }
-STRING;
-
-                } else {
-                    $c .= "({$property->getFieldConstantName(true)} === \$k && null !== \$v) {\n";
-                    $c .= "                \$this->{$name} = new " . determineClass($property) . "(\$value);\n";
-                    $c .= <<<STRING
-            }
-STRING;
+                    \${$name} = [];
+                    foreach(\$data[self::{$const}] as \$i => \$v) {
+                        if (null === \$v) {
+                            continue;
+                        }
+                        if (is_object(\$v)) {
+                            if (!(\$v instanceof {$className})) {
+                                throw new \InvalidArgumentException(sprintf(
+                                    'Field "{$name}" offset "%d" expected to be instance of "%s" but "%s" found',
+                                    \$i,
+                                    {$className}::class,
+                                    get_class(\$v)
+                                ));
+                            }
+                            \${$name}[] = \$v;
+                        } elseif (!is_array(\$v)) {
+                            throw new \InvalidArgumentException(sprintf(
+                                'Field "{$name}" offset "%d" expected to be associative array, saw "%s"',
+                                \$i,
+                                gettype(\$v)
+                            ));
+                        } elseif ([] === \$v) {
+                            continue;
+                        } else {
+                            \${$name}[] = new {$className}(\$v);
+                        }
+                    }
+                    \$this->{$name} = ([] === \${$name}) ? null : \${$name};
                 }
             }
         }
 
-        $c .= <<<STRING
- else {
-                \$this->{\$k} = \$v;
+EOT;
+            } else {
+                $c .= <<<EOT
+        if (isset(\$data[self::{$const}])) {
+            if (is_object(\$data[self::{$const}])) {
+                if (!(\$data[self::{$const}] instanceof {$className})) {
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" must be instance of "%s" or array descriptor, saw instance of "%s".',
+                        {$className}::class,
+                        get_class(\$data[self::{$const}])
+                    ));
+                }
+                \$this->{$name} = \$data[self::{$const}];
+            } elseif (is_array(\$data[self::{$const}])) {
+                if (!is_string(key(\$data[self::{$const}]))) {
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" must be instance of "%s" or array descriptor, numerically-indexed array.',
+                        {$className}::class
+                    ));
+                }
+                \$this->{$name} = new {$className}(\$data[self::{$const}]);
+            } else {
+                if (!(\$data[self::{$const}] instanceof {$className})) {
+                    throw new \\InvalidArgumentException(sprintf(
+                        'Field "{$name}" must be instance of "%s" or array descriptor, saw "%s".',
+                        {$className}::class,
+                        gettype(\$data[self::{$const}])
+                    ));
+                }
             }
         }
 
-STRING;
+EOT;
+            }
+        } elseif ($property->isCollection()) {
+            $c .= <<<EOT
+        if (isset(\$data[self::{$const}]) && is_array(\$data[self::{$const}])) {
+            \${$name} = [];
+            foreach(\$data[self::{$const}] as \$i => \$v) {
+                if (null === \$v) {
+                    continue;
+                }
+                if (!is_scalar(\$v)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        'Field "{$name}" offset "%d" expected to be scalar value, saw "%s"',
+                        \$i,
+                        gettype(\$v)
+                    ));
+                }
+                \${$name}[] = \$v;
+            }
+            \$this->{$name} = ([] === \${$name}) ? null : \${$name};
+        }
+
+EOT;
+
+        } else {
+            $c .= <<<EOT
+        if (isset(\$data[self::{$const}])) {
+            if (is_scalar(\$data[self::{$const}])) {
+                \$this->{$name} = \$data[self::{$const}];
+            } else {
+                throw new \InvalidArgumentException(sprintf(
+                    'Field "{$name}" expected to be scalar value, saw "%s"',
+                    gettype(\$data[self::{$const}])
+                ));
+            }            
+        }
+
+EOT;
+        }
     }
-
 
     if ($api) {
         if ($api->isPageable()) {
@@ -637,7 +754,7 @@ function buildClassFieldConstants(VariableContainer $fields): string
 {
     $buffer = 0;
     foreach ($fields as $field) {
-        if (($n = strlen($field->getFieldConstantName())) > $buffer) {
+        if (($n = strlen($field->getFieldConstantName(false))) > $buffer) {
             $buffer = $n;
         }
     }
@@ -646,7 +763,7 @@ function buildClassFieldConstants(VariableContainer $fields): string
     foreach ($fields as $field) {
         $out .= sprintf(
             "    const %-{$buffer}s = '%s';\n",
-            $field->getFieldConstantName(),
+            $field->getFieldConstantName(false),
             $field->getName()
         );
     }

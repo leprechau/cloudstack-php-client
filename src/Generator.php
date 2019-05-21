@@ -711,6 +711,13 @@ class Generator
         ));
 
         $this->twig->addFunction(new \Twig_Function(
+            'is_object_variable',
+            function ($in): bool {
+                return ($in instanceof ObjectVariable);
+            }
+        ));
+
+        $this->twig->addFunction(new \Twig_Function(
             'file_header',
             '\\MyENA\\CloudStackClientGenerator\\buildFileHeader',
             ['is_safe' => ['html']]

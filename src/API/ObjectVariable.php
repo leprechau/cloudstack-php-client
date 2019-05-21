@@ -93,6 +93,14 @@ class ObjectVariable extends Variable
     /**
      * @return string
      */
+    public function getPHPTypeHintValue(): string
+    {
+        return $this->getClassName();
+    }
+
+    /**
+     * @return string
+     */
     public function getFQName(): string
     {
         if (!isset($this->namespace) || $this->namespace === '') {

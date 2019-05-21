@@ -84,8 +84,11 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% for prop in api.parameters %}
 {% include "models/getter.php.twig" with {'prop': prop, 'env': env} %}
 
-
-{% include "models/setter.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% if param.isCollection %}
+{% include "models/setterCollection.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% else %}
+{% include "models/setterDefault.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% endif %}
 
 
 {% endfor %}
@@ -164,21 +167,21 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% for param in api.parameters %}
 {% if 'map' == param.type %}
         if (isset($this->{{ param.name }}) && is_array($this->{{ param.name }}) && count($this->{{ param.name }}) > 0) {
-            foreach(CloudStackHelpers::formatCSQueryArray($this->{{ param.name }}, self::{{ param.getFieldConstantName }}) as $k => $v) {
+            foreach(CloudStackHelpers::formatCSQueryArray($this->{{ param.name }}, {{ param.getFieldConstantName(true) }}) as $k => $v) {
                 $a[$k] = $v;
             }
         }
 {% elseif 'array' == param.phpType %}
         if (isset($this->{{ param.name }})) {
-            $a[self::{{ param.getFieldConstantName }}] = implode(',', $this->{{ param.name }});
+            $a[{{ param.getFieldConstantName(true)}}] = implode(',', $this->{{ param.name }});
         }
 {% elseif 'boolean' == param.phpType %}
         if (isset($this->{{ param.name }})) {
-            $a[self::{{ param.getFieldConstantName }}] = $this->{{ param.name }} ? 'true' : 'false';
+            $a[{{ param.getFieldConstantName(true)}}] = $this->{{ param.name }} ? 'true' : 'false';
         }
 {% else %}
         if (isset($this->{{ param.name }})) {
-            $a[self::{{ param.getFieldConstantName }}] = (string)$this->{{ param.name }};
+            $a[{{ param.getFieldConstantName(true)}}] = (string)$this->{{ param.name }};
         }
 {% endif %}
 {% endfor %}
@@ -262,7 +265,7 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
         $a = [];
 {% for param in api.parameters %}
         if (isset($this->{{ param.name }}){% if param.isCollection %} && is_array($this->{{ param.name }}) && count($this->{{ param.name }}) > 0{% endif %}) {
-            $a[self::{{ param.getFieldConstantName }}] = $this->{{ param.name }};
+            $a[{{ param.getFieldConstantName(true)}}] = $this->{{ param.name }};
         }
 {% endfor %}
         return $a;

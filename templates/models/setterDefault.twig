@@ -10,13 +10,3 @@
     For the full copyright and license information, please view the LICENSE
     file that was distributed with this source code.
 #}
-    /**
-{{ prop.phpdocDescription }}
-     * @param {{ prop.phpTypeTagValue }} ${{ prop.name }}
-     * @return {{ namespace_path('CloudStackRequest\\' ~ api.requestClassname, true) }}
-     */
-    public function set{{ prop.name|capitalize }}({% if 'array' == prop.phpType %}array {% endif %}${{ prop.name }}): {{ api.requestClassName }}
-    {
-        $this->{{ prop.name }} = ${{ prop.name }};
-        return $this;
-    }

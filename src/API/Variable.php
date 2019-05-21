@@ -55,7 +55,7 @@ class Variable
      * @param bool $includeSelf
      * @return string
      */
-    public function getFieldConstantName(bool $includeSelf = false): string
+    public function getFieldConstantName(bool $includeSelf): string
     {
         return ($includeSelf ? 'self::' : '') . 'FIELD_' . strtoupper($this->getName());
     }
@@ -300,15 +300,13 @@ class Variable
             $tag .= '[]';
         }
 
-        return $tag;
+        return "null|{$tag}";
     }
 
     /**
-     * @param bool $nullable
-     * @param bool $asReturn
      * @return string
      */
-    public function getPHPTypeHintValue(bool $nullable = false, bool $asReturn = false): string
+    public function getPHPTypeHintValue(): string
     {
         if ($this->inResponse() && 'jobresult' === $this->getName()) {
             return '';
@@ -339,14 +337,7 @@ class Variable
             }
         }
 
-        if ('' === $hint) {
-            return '';
-        }
-
-        if ($nullable) {
-            $hint = "?{$hint}";
-        }
-        return $asReturn ? ": {$hint}" : $hint;
+        return $hint;
     }
 
     /**
