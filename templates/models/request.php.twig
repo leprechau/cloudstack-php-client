@@ -85,9 +85,9 @@ class {{ api.requestClassname }} implements CloudStackRequestInterface, CloudSta
 {% include "models/getter.php.twig" with {'prop': prop, 'env': env} %}
 
 {% if param.isCollection %}
-{% include "models/setterCollection.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% include "models/request/setterCollection.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
 {% else %}
-{% include "models/setterDefault.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
+{% include "models/request/setterDefault.php.twig" with {'api': api, 'prop': prop, 'env': env} %}
 {% endif %}
 
 
