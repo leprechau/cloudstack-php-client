@@ -17,12 +17,10 @@
 {% set optionalParamLength = optionalParams|length %}
 {% endapply %}
     /**
-     * {{ api.description|raw|ucfirst ~ "\n" | u.wordwrap(80, "\n     * ", true) }}
+     * {{ api.description|raw|ucfirst ~ "\n" | u.wordwrap(80, "\n     * ", true) }}     *
 {% if api.since != '0.0' %}
-     *
      * @since {{ api.since }}
 {% endif %}
-     *
 {# document all required paramaters #}
 {% for param in requiredParams %}
      * @param {{ param.PHPTypeTagValue }} ${{ param.name }} {{ param.description|raw|ucfirst }}
