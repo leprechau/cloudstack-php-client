@@ -31,12 +31,12 @@ class APICommand
 class GenerateEventMapCommand extends AbstractCommand
 {
     /** @var \MyENA\CloudStackClientGenerator\Command\APIImplementation[] */
-    protected $implementations = [];
+    private $_apiImplementations = [];
     /** @var \MyENA\CloudStackClientGenerator\Command\APICommand[] */
-    protected $commands = [];
+    private $_apiCommands = [];
 
     /** @var array */
-    protected $map = [];
+    private $_eventMap = [];
 
     protected function configure()
     {
@@ -71,7 +71,38 @@ STRING
 //        $this->parseImplementations("{$src}/server/src");
         $this->parseCommands($src);
 
+        $this->buildEventMap();
+
+        ksort($this->_eventMap, SORT_NATURAL);
+
         $mapFile = __DIR__ . '/../../files/command_event_map.php';
+
+        if (file_exists($mapFile)) {
+            $mapFile = realpath($mapFile);
+            $this->log->debug(sprintf('Current event map file found: %s', $mapFile));
+            $current = require_once $mapFile;
+            ksort($current, SORT_NATURAL);
+
+            $this->log->debug(sprintf('Existing event map file has %d entries', count($current)));
+
+            if ($this->_eventMap == $current) {
+                $this->log->info('There are no differences between the new and existing event maps, exiting');
+                return 0;
+            }
+
+            $removed = array_diff_key($current, $this->_eventMap);
+            $added = array_diff_key($this->_eventMap, $current);
+            $this->log->info(sprintf(
+                'There were %d removed event(s) and %d added event(s)',
+                count($removed),
+                count($added)
+            ));
+            $this->log->debug(sprintf('Removed events: ["%s"]', implode('", "', array_keys($removed))));
+            $this->log->debug(sprintf('Added events: ["%s"]', implode('", "', array_keys($added))));
+        } else {
+            $this->log->info(sprintf('Unable to locate existing map file at %s', $mapFile));
+        }
+
         $f = fopen($mapFile, 'w+');
         if (!$f) {
             $this->log->error(<<<STRING
@@ -82,27 +113,26 @@ STRING
             return 1;
         }
 
-        fwrite($f, <<<STRING
-<?php return [
-
-STRING
-        );
-
-        foreach ($this->commands as $command) {
-            fwrite($f, "    '{$command->name}' => '{$command->event}',\n");
-        }
-
-        fwrite($f, '];');
+        fwrite($f, sprintf("<?php declare(strict_types=1);\nreturn %s;", var_export($this->_eventMap, true)));
         fclose($f);
 
         return 0;
     }
 
+    private function buildEventMap(): void
+    {
+        $this->log->debug(sprintf('Adding %d command events to map', count($this->_apiCommands)));
+        foreach ($this->_apiCommands as $command) {
+            $this->_eventMap[$command->name] = $command->event;
+        }
+    }
+
     /**
      * @param string $commands_dir
      */
-    protected function parseCommands(string $commands_dir)
+    private function parseCommands(string $commands_dir): void
     {
+        $this->log->debug(sprintf('Parsing command events from %s...', $commands_dir));
         $this->globerize($commands_dir, function (string $file, $basename) {
             if (false === strpos($basename, '.java')) {
                 return;
@@ -208,7 +238,7 @@ STRING
                                         break;
                                     }
                                 }
-                                $this->commands[] = $command;
+                                $this->_apiCommands[] = $command;
                                 unset($command);
                             }
                         }
@@ -218,9 +248,16 @@ STRING
 
             fclose($fh);
         });
+
+        $this->log->info(sprintf('%d command events parsed', count($this->_apiCommands)));
     }
 
-    protected function globerize(string $dir, \Closure $cb, int $flags = GLOB_NOSORT)
+    /**
+     * @param string $dir
+     * @param \Closure $cb
+     * @param int $flags
+     */
+    protected function globerize(string $dir, \Closure $cb, int $flags = GLOB_NOSORT): void
     {
         foreach (glob($dir, $flags) as $item) {
             $basename = basename($item);
@@ -285,7 +322,7 @@ STRING
     /**
      * @param string $implementations_dir
      */
-    protected function parseImplementations(string $implementations_dir)
+    protected function parseImplementations(string $implementations_dir): void
     {
         // NOTE: This is here in case we need it later...
         $this->globerize($implementations_dir, function (string $file, string $basename) {
@@ -343,7 +380,7 @@ STRING
                             exit(1);
                         }
                         $implementation->method = $matches[1];
-                        $this->implementations[] = $implementation;
+                        $this->_apiImplementations[] = $implementation;
                         $implementation = null;
                     }
                 }
