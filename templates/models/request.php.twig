@@ -9,19 +9,19 @@
 
     For the full copyright and license information, please view the LICENSE
     file that was distributed with this source code.
-#}{% spaceless %}
+#}{% apply spaceless %}
 {% set params = api.parameters %}
 {% set requiredParams = params.required %}
 {% set optionalParams = params.optional %}
 {% set requiredParamLength = requiredParams|length %}
 {% set optionalParamLength = optionalParams|length %}
 {% set hasMapParameter = false %}
-{% for param in api.parameters if hasMapParameter == false %}
-    {% if param.type == 'map' %}
+{% for param in api.parameters %}
+    {% if hasMapParameter == false and param.type == 'map' %}
         {% set hasMapParameter = true %}
     {% endif %}
 {% endfor %}
-{% endspaceless %}
+{% endapply %}
 <?php
 
 {{ namespace_stmt('CloudStackRequest') }}

@@ -9,15 +9,15 @@
 
     For the full copyright and license information, please view the LICENSE
     file that was distributed with this source code.
-#}{% spaceless %}
+#}{% apply spaceless %}
 {% set params = api.parameters %}
 {% set requiredParams = params.required %}
 {% set optionalParams = params.optional %}
 {% set requiredParamLength = requiredParams|length %}
 {% set optionalParamLength = optionalParams|length %}
-{% endspaceless %}
+{% endapply %}
     /**
-     * {% filter wordwrap(80, "\n     * ", true) %}{{ api.description|raw|ucfirst }}{{ "\n" }}{% endfilter %}
+     * {{ api.description|raw|ucfirst ~ "\n" | u.wordwrap(80, "\n     * ", true) }}
 {% if api.since != '0.0' %}
      *
      * @since {{ api.since }}

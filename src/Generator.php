@@ -6,6 +6,11 @@ use MyENA\CloudStackClientGenerator\API\ObjectVariable;
 use MyENA\CloudStackClientGenerator\API\Variable;
 use MyENA\CloudStackClientGenerator\Configuration\Environment;
 use Psr\Log\LoggerInterface;
+use Twig\Environment as TwigEnvironment;
+use Twig\Extra\String\StringExtension;
+use Twig\Loader\FilesystemLoader;
+use Twig\TwigFilter;
+use Twig\TwigFunction;
 
 /**
  * Class Generator
@@ -25,7 +30,7 @@ class Generator
     /** @var \Psr\Log\LoggerInterface */
     protected $log;
 
-    /** @var \Twig_Environment */
+    /** @var \Twig\Environment */
     protected $twig;
 
     /** @var API[] */
@@ -81,8 +86,8 @@ class Generator
         ));
 
         $this->log->debug('Loading Twig with template dir ' . self::TEMPLATE_DIR);
-        $twigLoader = new \Twig_Loader_Filesystem(self::TEMPLATE_DIR, true);
-        $this->twig = new \Twig_Environment(
+        $twigLoader = new FilesystemLoader(self::TEMPLATE_DIR);
+        $this->twig = new TwigEnvironment(
             $twigLoader,
             ['debug' => true, 'strict_variables' => true, 'autoescape' => false]
         );
@@ -115,10 +120,9 @@ class Generator
     /**
      * Execute generation of CloudStack API client
      *
-     * @throws \Exception
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     public function generate(): void
     {
@@ -398,12 +402,12 @@ class Generator
     }
 
     /**
-     * @param string $sourcePrefix
      * @param string $outputPrefix
+     * @param string $sourcePrefix
      * @param array $additionalTwigArgs
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeFromDirectory(
         string $outputPrefix,
@@ -424,9 +428,9 @@ class Generator
     }
 
     /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeOutStaticTemplates()
     {
@@ -504,9 +508,9 @@ class Generator
     }
 
     /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeOutClient()
     {
@@ -517,9 +521,9 @@ class Generator
     }
 
     /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeOutRequestModels()
     {
@@ -539,9 +543,9 @@ class Generator
     }
 
     /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeOutSharedResponseModels()
     {
@@ -558,9 +562,9 @@ class Generator
     }
 
     /**
-     * @throws \Twig_Error_Loader
-     * @throws \Twig_Error_Runtime
-     * @throws \Twig_Error_Syntax
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
     protected function writeOutResponseModels()
     {
@@ -582,7 +586,7 @@ class Generator
      */
     protected function registerTwigExtensions(): void
     {
-        $this->twig->addExtension(new \Twig_Extensions_Extension_Text());
+        $this->twig->addExtension(new StringExtension());
     }
 
     /**
@@ -590,7 +594,7 @@ class Generator
      */
     protected function registerTwigFilters(): void
     {
-        $this->twig->addFilter(new \Twig_Filter(
+        $this->twig->addFilter(new TwigFilter(
             'ucfirst',
             function ($in) {
                 return ucfirst($in);
@@ -607,7 +611,7 @@ class Generator
     protected function registerTwigFunctions()
     {
         $map = $this->commandEventMap;
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'command_event',
             function (string $in) use ($map): string {
                 return $map[$in] ?? '';
@@ -616,7 +620,7 @@ class Generator
         ));
 
         $rootNS = $this->env->getNamespace();
-        $this->twig->addFunction(new \Twig_function(
+        $this->twig->addFunction(new TwigFunction(
             'namespace_stmt',
             function (string $in = '') use ($rootNS): string {
                 if ('' === $rootNS) {
@@ -633,7 +637,7 @@ class Generator
             ['is_safe' => ['html']]
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'namespace_path',
             function (string $in = '', bool $prefix = false) use ($rootNS): string {
                 if ('' === $rootNS) {
@@ -651,7 +655,7 @@ class Generator
         ));
 
         $now = new \DateTime();
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'now',
             function (string $format = '') use ($now) : string {
                 if ('' === $format) {
@@ -662,44 +666,44 @@ class Generator
             ['is_safe' => ['html']]
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'var_export',
             'var_export',
             ['is_safe' => ['html']]
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'json_decode',
             'json_decode',
             ['is_safe' => ['html']]
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'tag_indent',
             '\\MyENA\\CloudStackClientGenerator\\tagIndent',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'swagger_definition_tag',
             '\\MyENA\\CloudStackClientGenerator\\buildSwaggerDefinitionTag',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'escape_swagger_string',
             '\\MyENA\\CloudStackClientGenerator\\escapeSwaggerString',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'since_tag_line',
             '\\MyENA\\CloudStackClientGenerator\\buildSinceTagLine',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'required_tag_line',
             '\\MyENA\\CloudStackClientGenerator\\buildRequiredTagLine',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'bor',
             function (int ...$ints): int {
                 $v = 0x0;
@@ -710,41 +714,41 @@ class Generator
             }
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'file_header',
             '\\MyENA\\CloudStackClientGenerator\\buildFileHeader',
             ['is_safe' => ['html']]
         ));
 
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'determine_class',
             '\\MyENA\\CloudStackClientGenerator\\determineClass',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'determine_swagger_name',
             '\\MyENA\\CloudStackClientGenerator\\determineSwaggerName',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'object_constructor',
             '\\MyENA\\CloudStackClientGenerator\\objectConstructor',
             ['is_safe' => ['html']]
         ));
         $generationID = $this->getGenerationID();
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'generation_id',
             function () use ($generationID): int {
                 return $generationID;
             },
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'optional_argument_code_docbloc',
             '\\MyENA\\CloudStackClientGenerator\\buildOptionalArgumentCodeDocBloc',
             ['is_safe' => ['html']]
         ));
-        $this->twig->addFunction(new \Twig_Function(
+        $this->twig->addFunction(new TwigFunction(
             'class_field_constants',
             '\\MyENA\\CloudStackClientGenerator\\buildClassFieldConstants',
             ['is_safe' => ['html']]
