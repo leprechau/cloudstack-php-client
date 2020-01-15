@@ -2,18 +2,16 @@
 <?php
 
 if (PHP_SAPI !== 'cli') {
-    echo __FILE__.' must be invoked via CLI'.PHP_EOL;
+    echo __FILE__ . ' must be invoked via CLI' . PHP_EOL;
 }
 
-require __DIR__.'/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 if (!(bool)getenv('PHP_CLOUDSTACK_GENERATOR_PHAR')) {
-    define('PHP_CLOUDSTACK_GENERATOR_ROOT', realpath(__DIR__.'/../'));
+    define('PHP_CLOUDSTACK_GENERATOR_ROOT', realpath(__DIR__ . '/../'));
 }
-
-use MyENA\CloudStackClientGenerator\Application;
 
 error_reporting(-1);
 
-$application = new Application('PHP CloudStack Client Generator', '6.0.0');
+$application = new \MyENA\CloudStackClientGenerator\Application('PHP CloudStack Client Generator', 'v7.0.0');
 $application->run();

@@ -38,13 +38,13 @@
     ]
   },
   "require": {
-    "php": "~7.1",
+    "php": ">=7.3",
     "ext-json": "*",
     "ext-curl": "*",
-    "symfony/console": "^4.1",
-    "symfony/yaml": "^4.1",
-    "twig/twig": "^2.4",
-    "twig/extensions": "^1.5",
+    "symfony/console": "^5.0",
+    "symfony/yaml": "^5.0",
+    "twig/twig": "^3.0",
+    "twig/string-extra": "~v3.0",
     "psr/log": "^1.0",
     "guzzlehttp/psr7": "^1.4",
     "guzzlehttp/guzzle": "^6.3",

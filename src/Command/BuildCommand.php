@@ -2,7 +2,6 @@
 
 namespace MyENA\CloudStackClientGenerator\Command;
 
-use function GuzzleHttp\default_user_agent;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -97,7 +96,9 @@ __HALT_COMPILER(); ?>
 PHP
         );
 
-        $this->log->warning('php-cloudstack-generator.phar written to ' . realpath($target));
+        $realpath = realpath($target);
+        chmod($realpath, 0755);
+        $this->log->warning("php-cloudstack-generator.phar written to {$realpath}");
 
         return 0;
     }
