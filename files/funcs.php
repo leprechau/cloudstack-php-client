@@ -568,17 +568,17 @@ STRING;
 
     if ($api) {
         if ($api->isPageable()) {
-            $c .= <<<PHP
+            $c .= <<<EOT
         \$this->requestPage = \$requestPage;
         \$this->requestPageSize = \$requestPageSize;
         \$this->totalReturnCount = \$totalReturnCount;
 
-PHP;
+EOT;
         } elseif ($api->isList()) {
-            $c .= <<<PHP
+            $c .= <<<EOT
         \$this->totalReturnCount = \$totalReturnCount;
 
-PHP;
+EOT;
         }
     }
 

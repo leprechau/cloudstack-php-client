@@ -13,5 +13,5 @@ if (!(bool)getenv('PHP_CLOUDSTACK_GENERATOR_PHAR')) {
 
 error_reporting(-1);
 
-$application = new \MyENA\CloudStackClientGenerator\Application('PHP CloudStack Client Generator', 'v7.0.0');
+$application = new \MyENA\CloudStackClientGenerator\Application('PHP CloudStack Client Generator', '6.0.0');
 $application->run();
