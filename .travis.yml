@@ -1,17 +1,10 @@
 language: php
-dist: trusty
+dist: xenial
 sudo: false
 
 php:
-  - 7.1
-  - 7.2
   - 7.3
-#
-#matrix:
-#  include:
-#    - php: 7.1
-#      env:
-#        - BUILD_PHAR=true
+  - 7.4
 
 script:
   - composer run-script build -vvv
@@ -23,4 +16,4 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
-    php: '7.2'
+    php: '7.4'
