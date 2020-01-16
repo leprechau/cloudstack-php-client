@@ -279,7 +279,7 @@ class Remote implements SourceProviderInterface {
                     $decoded = reset($decoded);
                 }
                 if (isset($decoded['errortext'])) {
-                    throw new \RuntimeException($decoded);
+                    throw new \RuntimeException(var_export($decoded['errortext'], true));
                 }
             }
             throw new \RuntimeException(sprintf('Received non-200 response: %d %s.  Body: %s',
