@@ -69,6 +69,7 @@ class CloudStackClient
 
     // these response prefixes need to be handled differently from the rest
     protected const RESPONSE_PREFIX_LIST     = 'list';
+    protected const RESPONSE_PREFIX_GET      = 'get';
     protected const RESPONSE_PREFIX_CREATE   = 'create';
     protected const RESPONSE_PREFIX_REGISTER = 'register';
     protected const RESPONSE_PREFIX_UPDATE   = 'update';
@@ -454,7 +455,9 @@ class CloudStackClient
         $prefix = null;
 
         // treat special cases of list, create and register calls
-        if (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_LIST)) {
+        if (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_GET)) {
+            $prefix = self::RESPONSE_PREFIX_GET;
+        } elseif (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_LIST)) {
             $prefix = self::RESPONSE_PREFIX_LIST;
         } elseif (0 === strpos($lowerCmd, self::RESPONSE_PREFIX_CREATE)) {
             $prefix = self::RESPONSE_PREFIX_CREATE;
